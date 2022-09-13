@@ -1,20 +1,20 @@
 classdef NIConstants
     
+    methods(Static)     % configure your filesystem here
+        function dir = dir()
+            dir.root = 'D:/NISTAR';
+            dir.hdf = '/hdf/';
+            dir.cal = '/calibration/';
+            dir.input = '/input/';
+        end
+    end
+
     methods(Static)
         function astro = astro()
             astro.earth_r = 6371;
             astro.moon_r = 1737.1;
             astro.l1 = 1.49e6;
             astro.dscovr0day = 2457203.5;
-        end
-    end
-    
-    methods(Static)
-        function dir = dir()
-            dir.root = 'D:/NISTAR';
-            dir.hdf = '/hdf/';
-            dir.cal = '/calibration/';
-            dir.input = '/input/';
         end
     end
     
@@ -61,6 +61,12 @@ classdef NIConstants
     end
 
     methods(Static)
+        function bandB_filter_scale = bandB_filter_scale()
+            bandB_filter_scale = 0.869;     % from Langley scene-dependent model
+        end
+    end
+
+    methods(Static)
         function hdfDataSet = hdfDataSet()
             hdfDataSet.l1aScience = '/Science_Data/ScienceData';
             hdfDataSet.l1aRad = '/Radiometric_Data/RadiometricPower';
@@ -79,10 +85,14 @@ classdef NIConstants
     end
 
     methods(Static)
-        function colorSet = colorSet()
-            colorSet.light = {'#FFAB91', '#FFE082', '#C5E1A5', ...
+        function figureConfig = figureConfig()
+            figureConfig.font.axes = 'Helvetica';
+            figureConfig.font.label = 'Helvetica';
+            figureConfig.font.title = 'Helvetica';
+            figureConfig.font.legend = 'Helvetica';
+            figureConfig.colorSet.light = {'#FFAB91', '#FFE082', '#C5E1A5', ...
                 '#80DEEA', '#B39DDB', '#FFCDD2'};
-            colorSet.normal = {'#00BCD4', '#FF8A65', '#8BC34A', ...
+            figureConfig.colorSet.normal = {'#00BCD4', '#FF8A65', '#8BC34A', ...
                 '#FFC107', '#673AB7', '#E91E63', '#1E88E5'};
         end
     end

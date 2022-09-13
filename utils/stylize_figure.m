@@ -1,9 +1,14 @@
-% stylize a MATLAB figure to look like a plot in a journal
-%
-%
+% stylize a MATLAB figure
 
 
-function stylize_figure(fig, figureWidth, figureHeight)
+function stylize_figure(fig, figureWidth, figureHeight, options)
+
+    arguments
+        fig (1,1) matlab.ui.Figure
+        figureWidth (1,1) double {mustBePositive} = 6
+        figureHeight (1,1) double {mustBePositive} = 4
+        options.override_line_color (1,1) logical = false
+    end
 
     % Set the figure size
     set(fig, 'Units', 'inches');
@@ -15,31 +20,40 @@ function stylize_figure(fig, figureWidth, figureHeight)
     % get all the axes in the figure
     axes = findall(fig, 'Type', 'axes');
     for i = 1:length(axes)
-        stylize_axes(axes(i), fontSize);
+        stylize_axes(axes(i), font_size=fontSize, ...
+            override_line_color=options.override_line_color);
     end
 
     % check if the figure has a legend
-    legend = findobj(fig, 'Type', 'Legend');
-    if ~isempty(legend)
-        stylize_legend(legend, fontSize);
+    legends = findobj(fig, 'Type', 'Legend');
+    if ~isempty(legends)
+        for i = 1:length(legends)
+            stylize_legend(legends(i), font_size=fontSize);
+        end
     end
 
 end
 
 
-function stylize_axes(ax, fontSize)
+function stylize_axes(ax, options)
 
-    ax.FontName = 'Yu Mincho';
-    ax.FontSize = fontSize;
+    arguments
+        ax (1,1) matlab.graphics.axis.Axes
+        options.font_size (1,1) double {mustBePositive} = 9
+        options.override_line_color (1,1) logical = false
+    end
+
+    ax.FontName = NIConstants.figureConfig.font.axes;
+    ax.FontSize = options.font_size;
     ax.FontWeight = 'bold';
 
-    ax.XLabel.FontName = 'Yu Mincho';
-    ax.YLabel.FontName = 'Yu Mincho';
-    ax.ZLabel.FontName = 'Yu Mincho';
+    ax.XLabel.FontName = NIConstants.figureConfig.font.label;
+    ax.YLabel.FontName = NIConstants.figureConfig.font.label;
+    ax.ZLabel.FontName = NIConstants.figureConfig.font.label;
 
-    ax.XLabel.FontSize = fontSize;
-    ax.YLabel.FontSize = fontSize;
-    ax.ZLabel.FontSize = fontSize;
+    ax.XLabel.FontSize = options.font_size;
+    ax.YLabel.FontSize = options.font_size;
+    ax.ZLabel.FontSize = options.font_size;
 
     ax.XLabel.FontWeight = 'bold';
     ax.YLabel.FontWeight = 'bold';
@@ -49,8 +63,8 @@ function stylize_axes(ax, fontSize)
     ax.YLabel.Interpreter = 'latex';
     ax.ZLabel.Interpreter = 'latex';
 
-    ax.Title.FontName = 'Yu Mincho';
-    ax.Title.FontSize = fontSize * 1.25;
+    ax.Title.FontName = NIConstants.figureConfig.font.title;
+    ax.Title.FontSize = options.font_size * 1.25;
     ax.Title.FontWeight = 'bold';
     ax.Title.Interpreter = 'latex';
 
@@ -67,7 +81,9 @@ function stylize_axes(ax, fontSize)
 
     lines = get(ax, 'Children');
     for i = 1:length(lines)
-        lines(i).Color = NIConstants.colorSet.normal{i};
+        if ~options.override_line_color
+            lines(i).Color = NIConstants.figureConfig.colorSet.normal{i};
+        end
         lines(i).LineWidth = 1;
         lines(i).MarkerSize = 4;
         lines(i).MarkerFaceColor = lines(i).Color;
@@ -76,10 +92,15 @@ function stylize_axes(ax, fontSize)
 end
 
 
-function stylize_legend(legend, fontSize)
+function stylize_legend(legend, options)
 
-    legend.FontName = 'Yu Mincho';
-    legend.FontSize = fontSize;
+    arguments
+        legend (1,1) matlab.graphics.illustration.Legend
+        options.font_size (1,1) double {mustBePositive} = 9
+    end
+
+    legend.FontName = NIConstants.figureConfig.font.legend;
+    legend.FontSize = options.font_size;
     legend.FontWeight = 'bold';
     legend.Interpreter = 'latex';
     legend.Box = 'off';

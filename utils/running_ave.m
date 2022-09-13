@@ -2,7 +2,7 @@ function average = running_ave(time, data, window, step, options)
 % averaged = running_ave(time, data, window, step, options)
 %
 % This function calculates the running average of a data set.  The window
-% and step size are in seconds.  The sample rate is in Hz.
+% and step size, and data rate (sampling time) are all in seconds.
 %
 % INPUTS:
 %   time:       time vector
@@ -10,7 +10,7 @@ function average = running_ave(time, data, window, step, options)
 %   window:     window size in seconds
 %   step:       step size in seconds
 %   options:
-%       .data_rate:     sample rate of the input data in Hz, default = 1
+%       .data_rate:     sample rate of the input data in seconds, default = 1
 %       .method:        'mean' or 'median', default = 'mean'
 %       .percentage:    minimum percentage of data points in the window to calculate the average, default = 70
 %       .output_time:   'center' or 'averaged', default = 'center'
@@ -25,7 +25,7 @@ function average = running_ave(time, data, window, step, options)
 %   
 %
 % EXAMPLE:
-%   averaged = running_ave(time, data, 10, 1, data_rate=1000, method='mean', percentage=70, output_time='center', plot=true);
+%   averaged = running_ave(time, data, 86400, 3600, data_rate=10, method='mean', percentage=90, output_time='center', plot=true);
 
 arguments
     time (:,1) double

@@ -205,24 +205,24 @@ classdef NIL1B
 
                 figure;
                 subplot(3, 1, 1);
-                plot(x_datetime_data_a, l1bEarthRad.irradiance_a, 'b.');
+                plot(x_datetime_data_a, l1bEarthRad.irradiance_a);
                 hold on;
-                plot(x_datetime_data_b, l1bEarthRad.irradiance_b, 'r.');
-                plot(x_datetime_data_c, l1bEarthRad.irradiance_c, 'g.');
+                plot(x_datetime_data_b, l1bEarthRad.irradiance_b);
+                plot(x_datetime_data_c, l1bEarthRad.irradiance_c);
                 title('Irradiance');
                 legend('Band A', 'Band B', 'Band C');
                 subplot(3, 1, 2);
-                plot(x_datetime_data_a, l1bEarthRad.radiance_a, 'b.');
+                plot(x_datetime_data_a, l1bEarthRad.radiance_a);
                 hold on;
-                plot(x_datetime_data_b, l1bEarthRad.radiance_b, 'r.');
-                plot(x_datetime_data_c, l1bEarthRad.radiance_c, 'g.');
+                plot(x_datetime_data_b, l1bEarthRad.radiance_b);
+                plot(x_datetime_data_c, l1bEarthRad.radiance_c);
                 title('Radiance');
                 legend('Band A', 'Band B', 'Band C');
                 subplot(3, 1, 3);
-                plot(x_datetime_data_b, l1bEarthRad.radiance_b_corr, 'r.');
+                plot(x_datetime_data_b, l1bEarthRad.radiance_b_corr);
                 hold on;
-                plot(x_datetime_data_b, l1bEarthRad.radiance_b_corr_unc, 'g.');
-                title('Radiance Correction');
+                plot(x_datetime_data_b, l1bEarthRad.radiance_b_corr_unc);
+                title('Shortwave Radiance Correction');
                 legend('Lunar Correction', 'Lunar Correction Uncertainty');
                 stylize_figure(gcf, 6, 8);
             end
@@ -291,10 +291,10 @@ classdef NIL1B
                 x_datetime_data = NIDateTime.getCalendarDateFromDSCOVREpoch(l1bEarthPD.time);
                 figure;
                 subplot(2, 1, 1);
-                plot(x_datetime_data, l1bEarthPD.curr, 'b.');
+                plot(x_datetime_data, l1bEarthPD.curr);
                 title('Earth Photodiode Current');
                 subplot(2, 1, 2);
-                plot(x_datetime_data, l1bEarthPD.curr_norm, 'b.');
+                plot(x_datetime_data, l1bEarthPD.curr_norm);
                 title('Earth Photodiode Current Normalized to 1 AU');
                 stylize_figure(gcf, 6, 8);
             end
@@ -439,7 +439,8 @@ classdef NIL1B
                 averaged.radiance_a = bandA_average.data;
                 averaged.radiance_b = bandB_average.data;
                 averaged.radiance_c = bandC_average.data;
-                averaged.radiance_lw = averaged.radiance_a + averaged.radiance_b + averaged.radiance_c;
+                radiance_a_interp = interp1(averaged.time_a, averaged.radiance_a, averaged.time_b, 'linear');
+                averaged.radiance_lw = transpose(radiance_a_interp) - averaged.radiance_b / NIConstants.bandB_filter_scale;
                 averaged.curr = bandPD_average.data
             end
 
@@ -461,17 +462,15 @@ classdef NIL1B
                 if options.average ~= "none"
                     figure;
                     hold on
-                    plot(NIDateTime.getCalendarDateFromDSCOVREpoch(averaged.time_pd), averaged.curr * scale_factor);
-                    plot(NIDateTime.getCalendarDateFromDSCOVREpoch(averaged.time_b), averaged.radiance_b);
+                    plot(NIDateTime.getCalendarDateFromDSCOVREpoch(averaged.time_pd), averaged.curr * scale_factor, 'k');
+                    plot(NIDateTime.getCalendarDateFromDSCOVREpoch(averaged.time_b), averaged.radiance_b, 'r');
                     title(sprintf('%s averaged SW vs PD channels', options.average));
                     legend('Scaled Photodiode Current', 'Shortwave');
-                    ylabel('W/m^2/sr');
-                    stylize_figure(gcf, 6, 4);
+                    ylabel('$W/m^2/sr$');
+                    stylize_figure(gcf, 6, 4, override_line_color=true);
                 end
             end
         end
     end
-
 end
-
                 
