@@ -467,7 +467,7 @@ classdef NIL1B
                     title(sprintf('%s averaged SW vs PD channels', options.average));
                     legend('Scaled Photodiode Current', 'Shortwave');
                     ylabel('$W/m^2/sr$');
-                    stylize_figure(gcf, 6, 4, override_line_color=true);
+                    stylize_figure(gcf, 6, 4, ax_override_line_color=false);
                 end
             end
         end

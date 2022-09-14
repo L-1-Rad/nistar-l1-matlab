@@ -360,7 +360,7 @@ classdef NIL1A
             if options.plotFlag
                 x_datetime_data = NIDateTime.getCalendarDateFromDSCOVREpoch(l1aHS.time);
                 figure;
-                plot(x_datetime_data, l1aHS.hs, 'b.');
+                plot(x_datetime_data, l1aHS.hs, '.');
                 grid on
                 stylize_figure(gcf, 5, 4);
             end

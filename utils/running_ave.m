@@ -90,6 +90,6 @@ if options.plot
     plot(time, data, 'k');
     hold on;
     plot(average.time, average.data, 'r.', MarkerSize=8);
-    stylize_figure(gcf, 8, 6);
+    stylize_figure(gcf, 8, 6, ax_override_line_color=false, ax_override_marker_size=false);
 end
 
