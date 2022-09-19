@@ -30,7 +30,7 @@ classdef NIL1B
 
             arguments
                 jul_day1 double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day1, 2457203.5)}
-                jul_day2 double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day2, jul_day1)}
+                jul_day2 double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day2, jul_day1)} = jul_day1
                 options.directory string {mustBeFolder} = strcat(NIConstants.dir.root, NIConstants.dir.hdf)
                 options.plotFlag logical = false
             end
@@ -38,7 +38,7 @@ classdef NIL1B
             fprintf('\n');
             l1bDemod = struct('time', [], 'demod_rc1', [], 'demod_rc2', [], 'demod_rc3', [], ...
                 'demod_rc1_im', [], 'demod_rc2_im', [], 'demod_rc3_im', [], 'fw', [], ...
-                'rc1_shutter', [], 'rc2_shutter', [], 'rc3_shutter', []);
+                'shutter_rc1', [], 'shutter_rc2', [], 'shutter_rc3', []);
             
             valid_file_count = 0;
 
@@ -64,9 +64,9 @@ classdef NIL1B
                 l1bDemod.demod_rc1 = [l1bDemod.demod_rc1; l1bDemod_data.DemodulatedRadiometerPower1];
                 l1bDemod.demod_rc2 = [l1bDemod.demod_rc2; l1bDemod_data.DemodulatedRadiometerPower2];
                 l1bDemod.demod_rc3 = [l1bDemod.demod_rc3; l1bDemod_data.DemodulatedRadiometerPower3];
-                l1bDemod.demod_rc1_im = [l1bDemod.demod_rc1_im; l1bDemod_data.DemodulatedRadiometerPower1Imaginary];
-                l1bDemod.demod_rc2_im = [l1bDemod.demod_rc2_im; l1bDemod_data.DemodulatedRadiometerPower2Imaginary];
-                l1bDemod.demod_rc3_im = [l1bDemod.demod_rc3_im; l1bDemod_data.DemodulatedRadiometerPower3Imaginary];
+                l1bDemod.demod_rc1_im = [l1bDemod.demod_rc1_im; l1bDemod_data.DemodulatedRadiometerPower1Im];
+                l1bDemod.demod_rc2_im = [l1bDemod.demod_rc2_im; l1bDemod_data.DemodulatedRadiometerPower2Im];
+                l1bDemod.demod_rc3_im = [l1bDemod.demod_rc3_im; l1bDemod_data.DemodulatedRadiometerPower3Im];
                 l1bDemod.fw = [l1bDemod.fw; l1bDemod_data.FilterWheel];
                 l1bDemod.shutter_rc1 = [l1bDemod.shutter_rc1; l1bDemod_data.ShutterMotor1];
                 l1bDemod.shutter_rc2 = [l1bDemod.shutter_rc2; l1bDemod_data.ShutterMotor2];
@@ -133,7 +133,7 @@ classdef NIL1B
 
             arguments
                 jul_day1 double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day1, 2457203.5)}
-                jul_day2 double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day2, jul_day1)}
+                jul_day2 double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day2, jul_day1)} = jul_day1
                 options.directory string {mustBeFolder} = strcat(NIConstants.dir.root, NIConstants.dir.hdf)
                 options.plotFlag logical = false
             end
@@ -249,7 +249,7 @@ classdef NIL1B
 
             arguments
                 jul_day1 (1, 1) double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day1, 2457203.5)}
-                jul_day2 (1, 1) double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day2, jul_day1)}
+                jul_day2 (1, 1) double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day2, jul_day1)} = jul_day1
                 options.directory string {mustBeFolder} = strcat(NIConstants.dir.root, NIConstants.dir.hdf)
                 options.plotFlag logical = false
             end
@@ -348,8 +348,8 @@ classdef NIL1B
             arguments
                 year1 (1, 1) double {mustBeInteger, mustBeGreaterThanOrEqual(year1, 2015)}
                 month1 (1, 1) double {mustBeInteger, mustBeGreaterThanOrEqual(month1, 1), mustBeLessThanOrEqual(month1, 12)}
-                year2 (1, 1) double {mustBeInteger, mustBeGreaterThanOrEqual(year2, year1)}
-                month2 (1, 1) double {mustBeInteger, mustBeGreaterThanOrEqual(month2, 1), mustBeLessThanOrEqual(month2, 12)}
+                year2 (1, 1) double {mustBeInteger, mustBeGreaterThanOrEqual(year2, year1)} = year1
+                month2 (1, 1) double {mustBeInteger, mustBeGreaterThanOrEqual(month2, 1), mustBeLessThanOrEqual(month2, 12)} = month1
                 options.directory string {mustBeFolder} = strcat(NIConstants.dir.root, NIConstants.dir.hdf)
                 options.average string {mustBeMember(options.average, {'none', 'daily', 'weekly'})} = 'none'
                 options.plotFlag logical = false
@@ -441,7 +441,7 @@ classdef NIL1B
                 averaged.radiance_c = bandC_average.data;
                 radiance_a_interp = interp1(averaged.time_a, averaged.radiance_a, averaged.time_b, 'linear');
                 averaged.radiance_lw = transpose(radiance_a_interp) - averaged.radiance_b / NIConstants.bandB_filter_scale;
-                averaged.curr = bandPD_average.data
+                averaged.curr = bandPD_average.data;
             end
 
             if options.plotFlag

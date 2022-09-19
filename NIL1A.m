@@ -27,7 +27,7 @@ classdef NIL1A
 
             arguments
                 jul_day1 double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day1, 2457203.5)}
-                jul_day2 double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day2, jul_day1)}
+                jul_day2 double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day2, jul_day1)} = jul_day1
                 options.directory string {mustBeFolder} = strcat(NIConstants.dir.root, NIConstants.dir.hdf)
                 options.plotFlag logical = false
             end
@@ -136,7 +136,7 @@ classdef NIL1A
 
             arguments
                 jul_day1 (1, 1) double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day1, 2457203.5)}
-                jul_day2 (1, 1) double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day2, jul_day1)}
+                jul_day2 (1, 1) double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day2, jul_day1)} = jul_day1
                 options.directory string {mustBeFolder} = strcat(NIConstants.dir.root, NIConstants.dir.hdf)
                 options.plotFlag logical = false
             end
@@ -230,7 +230,7 @@ classdef NIL1A
 
             arguments
                 jul_day1 double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day1, 2457203.5)}
-                jul_day2 double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day2, jul_day1)}
+                jul_day2 double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day2, jul_day1)} = jul_day1
                 options.directory string {mustBeFolder} = strcat(NIConstants.dir.root, NIConstants.dir.hdf)
                 options.plotFlag logical = false
             end
@@ -301,7 +301,7 @@ classdef NIL1A
 
             arguments
                 jul_day1 double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day1, 2457203.5)}
-                jul_day2 double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day2, jul_day1)}
+                jul_day2 double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day2, jul_day1)} = jul_day1
                 options.directory string {mustBeFolder} = strcat(NIConstants.dir.root, NIConstants.dir.hdf)
                 options.average string {mustBeMember(options.average, {'none', '4-shutter', 'hourly', '2-hour'})} = 'none'
                 options.plotFlag logical = false
@@ -391,7 +391,7 @@ classdef NIL1A
 
             arguments
                 jul_day1 double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day1, 2457203.5)}
-                jul_day2 double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day2, jul_day1)}
+                jul_day2 double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day2, jul_day1)} = jul_day1
                 options.directory string {mustBeFolder} = strcat(NIConstants.dir.root, NIConstants.dir.hdf)
                 options.plotFlag logical = false
             end
