@@ -39,4 +39,52 @@ classdef NIHDF
             end
         end
     end
+
+    methods (Static)
+        function printInfoForSingleFile(filename)
+            arguments
+                filename string {mustBeFile}
+            end
+            
+            info = h5info(filename);
+            fprintf('Filename: %s: \n', filename);
+            fprintf('  File size: %s bytes\n', dir(filename).bytes);
+            fprintf('  Number of groups: %d\n', length(info.Groups));
+
+            analyzeHeatSinkData(filename);
+            analyzeL1ARadiometerData(filename);
+        end
+
+        function analyzeHeatSinkData(filename)
+            arguments
+                filename string {mustBeFile}
+            end
+            try
+                l1aHS = h5read(filename, NIConstants.hdfDataSet.l1aScience);
+            catch ME
+                if ME.identifier == "MATLAB:imagesci:h5read:libraryError"
+                    fprintf('  No L1A science dataset found in %s.\n', filename);
+                else
+                    warning('  Error while reading L1A science dataset: %s', ME.message);
+                end
+            end
+            fprintf('Number of records: %d, percentage of missing records: %f\n', length(l1aHS.time), 100 * (86400 - length(l1aHS.time)) / 86400);
+        end
+
+        function analyzeL1ARadiometerData(filename)
+            arguments
+                filename string {mustBeFile}
+            end
+            try
+                l1aRad_data = h5read(filename.with_path, NIConstants.hdfDataSet.l1aRad);
+            catch ME
+                if ME.identifier == "MATLAB:imagesci:h5read:libraryError"
+                    fprintf('  No L1A radiometer dataset found in %s.\n', filename);
+                else
+                    warning('  Error while reading L1A radiometer dataset: %s', ME.message);
+                end
+            end
+            fprintf('Number of records: %d, percentage of missing records: %f\n', length(l1aRad.time), 100 * (total_seconds - length(l1aRad.time)) / total_seconds);
+        end
+    end
 end
