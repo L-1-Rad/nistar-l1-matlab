@@ -53,27 +53,34 @@ classdef NIHDF
 
             count_of_apid82 = NIHDF.analyzeHeatSinkData(filename);
             count_of_l1arad = NIHDF.analyzeL1ARadiometerData(filename);
-
-            fprintf('   Number of linear interpolated L1A radiometer data: %d\n', count_of_l1arad - count_of_apid82);
+            if count_of_l1arad > 0
+                fprintf('   Number of linear interpolated L1A radiometer data: %d\n', count_of_l1arad - count_of_apid82);
+            end
+            count_of_non_nominal_fw = NIHDF.analyzeFilterWheelPositionData(filename);
+            if count_of_non_nominal_fw == 0
+                fprintf('   All filter wheel positions are nominal.\n');
+            end
         end
 
-        function analyzeHeatSinkData(filename)
+        function res = analyzeHeatSinkData(filename)
             arguments
                 filename string {mustBeFile}
             end
+            res = 0;
             try
                 l1aHS = h5read(filename, NIConstants.hdfDataSet.l1aScience);
+                res = length(l1aHS.H052TIME);
             catch ME
                 if ME.identifier == "MATLAB:imagesci:h5read:libraryError"
                     fprintf('  No L1A science dataset found in %s.\n', filename);
                 else
-                    warning('  Error while reading L1A science dataset: %s', ME.message);
+                    warning(ME.identifier, '  Error while reading L1A science dataset: %s', ME.message);
                 end
             end
-            fprintf('   Number of records: %d, percentage of missing records: %f\n', length(l1aHS.time), 100 * (86400 - length(l1aHS.time)) / 86400);
+            fprintf('   Number of AppID82 records: %d, percentage of missing records: %.2f\n', res, 100 * (86400 - res) / 86400);
         end
 
-        function analyzeFilterWheelPositionData(filename)
+        function res = analyzeFilterWheelPositionData(filename)
             arguments
                 filename string {mustBeFile}
             end
@@ -83,30 +90,33 @@ classdef NIHDF
                 if ME.identifier == "MATLAB:imagesci:h5read:libraryError"
                     fprintf('  No L1A science dataset found in %s.\n', filename);
                 else
-                    warning('  Error while reading L1A science dataset: %s', ME.message);
+                    warning(ME.identifier, '    Error while reading L1A science dataset: %s', ME.message);
                 end
+                res = -1;
+                return
             end
-            fprintf('   Number of records: %d, percentage of missing records: %f\n', length(l1aFW.time), 100 * (86400 - length(l1aFW.time)) / 86400);
-            findAnomalousValuesInTimeSeries(l1aFW.time, l1aFW.fw, 3, false);
+            res = NIHDF.findAnomalousValuesInTimeSeries(l1aFW.H052TIME, l1aFW.NIPREFWPOSNUM, 3, false);
         end
 
-        function analyzeL1ARadiometerData(filename)
+        function res = analyzeL1ARadiometerData(filename)
             arguments
                 filename string {mustBeFile}
             end
+            res = 0;
             try
-                l1aRad_data = h5read(filename.with_path, NIConstants.hdfDataSet.l1aRad);
+                l1aRad = h5read(filename, NIConstants.hdfDataSet.l1aRad);
+                res = length(l1aRad.DSCOVREpochTime);
             catch ME
                 if ME.identifier == "MATLAB:imagesci:h5read:libraryError"
                     fprintf('  No L1A radiometer dataset found in %s.\n', filename);
                 else
-                    warning('  Error while reading L1A radiometer dataset: %s', ME.message);
+                    warning(ME.identifier, '  Error while reading L1A radiometer dataset: %s', ME.message);
                 end
             end
-            fprintf('   Number of records: %d, percentage of missing records: %f\n', length(l1aRad.time), 100 * (total_seconds - length(l1aRad.time)) / total_seconds);
+            
+            fprintf('   Number of L1A radiometer records: %d, percentage of missing records: %.2f\n', res, 100 * (86400 - res) / 86400);
         end
-
-        function ans = findAnomalousValuesInTimeSeries(time, data, value, equal_or_nonequal)
+        function res = findAnomalousValuesInTimeSeries(time, data, value, equal_or_nonequal)
             arguments
                 time double
                 data double
@@ -120,7 +130,7 @@ classdef NIHDF
             % value: value to be searched for
             % equal_or_nonequal: define anomalous as 'equal' or 'nonequal' to the value, default is true (equal)
             % return: indices of anomalous values
-            ans = 0;
+            res = 0;
             if equal_or_nonequal
                 indices = find(data == value);
             else
@@ -132,10 +142,10 @@ classdef NIHDF
                 diff_indices = diff(indices);
                 diff_indices = [diff_indices; 1];
                 indices_of_segments = find(diff_indices > 1);
-                ans = length(indices_of_segments);
-                fprintf('   Found %d consecutive anomalous value segments.\n', ans);
+                res = length(indices_of_segments);
+                fprintf('   Found %d consecutive anomalous value segments.\n', res);
                 % print the start and end time of each segment
-                for i = 1:ans
+                for i = 1:res
                     if i == 1
                         start_index = 1;
                     else
