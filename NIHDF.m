@@ -41,9 +41,10 @@ classdef NIHDF
     end
 
     methods (Static)
-        function printInfoForSingleFile(filename)
+        function printInfoForSingleFile(filename, processing_level)
             arguments
                 filename string {mustBeFile}
+                processing_level string {mustBeMember(processing_level, {'1a', '1b'})}
             end
             
             info = h5info(filename);
@@ -51,14 +52,19 @@ classdef NIHDF
             fprintf('  File size: %.2f MB\n', dir(filename).bytes / 1024^2);
             fprintf('  Number of groups: %d\n', length(info.Groups));
 
-            count_of_apid82 = NIHDF.analyzeHeatSinkData(filename);
-            count_of_l1arad = NIHDF.analyzeL1ARadiometerData(filename);
-            if count_of_l1arad > 0
-                fprintf('   Number of linear interpolated L1A radiometer data: %d\n', count_of_l1arad - count_of_apid82);
-            end
-            count_of_non_nominal_fw = NIHDF.analyzeFilterWheelPositionData(filename);
-            if count_of_non_nominal_fw == 0
-                fprintf('   All filter wheel positions are nominal.\n');
+            if processing_level == '1a'
+                count_of_apid82 = NIHDF.analyzeHeatSinkData(filename);
+                count_of_l1arad = NIHDF.analyzeL1ARadiometerData(filename);
+                if count_of_l1arad > 0
+                    fprintf('   Number of linear interpolated L1A radiometer data: %d\n', count_of_l1arad - count_of_apid82);
+                end
+                count_of_non_nominal_fw = NIHDF.analyzeFilterWheelPositionData(filename);
+                if count_of_non_nominal_fw == 0
+                    fprintf('   All filter wheel positions are nominal.\n');
+                end
+            else
+                count_of_demod = NIHDF.analyzeDemodulatorData(filename);
+                count_of_earth_irradiance = NIHDF.analyzeEarthIrradianceData(filename);
             end
         end
 
@@ -116,6 +122,69 @@ classdef NIHDF
             
             fprintf('   Number of L1A radiometer records: %d, percentage of missing records: %.2f\n', res, 100 * (86400 - res) / 86400);
         end
+
+        function res = analyzeDemodulatorData(filename)
+            arguments
+                filename string {mustBeFile}
+            end
+            res = 0;
+            try
+                l1bDemod = h5read(filename, NIConstants.hdfDataSet.l1bDemod);
+                res = length(l1bDemod.DSCOVREpochTime);
+            catch ME
+                if ME.identifier == "MATLAB:imagesci:h5read:libraryError"
+                    fprintf('  No L1B demodulator dataset found in %s.\n', filename);
+                else
+                    warning(ME.identifier, '  Error while reading L1B demodulator dataset: %s', ME.message);
+                end
+            end
+            
+            fprintf('   Number of L1B demodulator records: %d, percentage of missing records: %.2f\n', res, 100 * (86400 - res) / 86400);
+        end
+
+        function [res_a, res_b, res_c] = analyzeEarthIrradianceData(filename)
+            arguments
+                filename string {mustBeFile}
+            end
+            res_a = 0;
+            res_b = 0;
+            res_c = 0;
+            try
+                l1bEarthIrr = h5read(filename, NIConstants.hdfDataSet.l1bEarthRadA);
+                res_a = length(l1bEarthIrr.DSCOVREpochTime);
+            catch ME
+                if ME.identifier == "MATLAB:imagesci:h5read:libraryError"
+                    fprintf('  No L1B earth irradiance band A dataset found in %s.\n', filename);
+                else
+                    warning(ME.identifier, '  Error while reading L1B earth irradiance band A dataset: %s', ME.message);
+                end
+            end
+            try
+                l1bEarthIrr = h5read(filename, NIConstants.hdfDataSet.l1bEarthRadB);
+                res_b = length(l1bEarthIrr.DSCOVREpochTime);
+            catch ME
+                if ME.identifier == "MATLAB:imagesci:h5read:libraryError"
+                    fprintf('  No L1B earth irradiance band B dataset found in %s.\n', filename);
+                else
+                    warning(ME.identifier, '  Error while reading L1B earth irradiance band B dataset: %s', ME.message);
+                end
+            end
+            try
+                l1bEarthIrr = h5read(filename, NIConstants.hdfDataSet.l1bEarthRadC);
+                res_c = length(l1bEarthIrr.DSCOVREpochTime);
+            catch ME
+                if ME.identifier == "MATLAB:imagesci:h5read:libraryError"
+                    fprintf('  No L1B earth irradiance band C dataset found in %s.\n', filename);
+                else
+                    warning(ME.identifier, '  Error while reading L1B earth irradiance band C dataset: %s', ME.message);
+                end
+            end
+            
+            fprintf('   Number of L1B earth irradiance band A records: %d, percentage of missing records: %.2f\n', res_a, 100 * (86400 - res_a) / 86400);
+            fprintf('   Number of L1B earth irradiance band B records: %d, percentage of missing records: %.2f\n', res_b, 100 * (86400 - res_b) / 86400);
+            fprintf('   Number of L1B earth irradiance band C records: %d, percentage of missing records: %.2f\n', res_c, 100 * (86400 - res_c) / 86400);
+        end
+
         function res = findAnomalousValuesInTimeSeries(time, data, value, equal_or_nonequal)
             arguments
                 time double
