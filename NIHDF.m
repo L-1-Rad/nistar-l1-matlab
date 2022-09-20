@@ -142,16 +142,16 @@ classdef NIHDF
             fprintf('   Number of L1B demodulator records: %d, percentage of missing records: %.2f\n', res, 100 * (86400 - res) / 86400);
         end
 
-        function [res_a, res_b, res_c] = analyzeEarthIrradianceData(filename)
+        function count = analyzeEarthIrradianceData(filename)
             arguments
                 filename string {mustBeFile}
             end
-            res_a = 0;
-            res_b = 0;
-            res_c = 0;
+            count = struct('a': struct('total', 0, 'interp1', 0, 'interp2', 0), 
+                        'b': struct('count', 0, 'interp1', 0, 'interp2', 0, 'interp3', 0),
+                        'c': struct('count', 0, 'interp1', 0, 'interp2', 0));
             try
-                l1bEarthIrr = h5read(filename, NIConstants.hdfDataSet.l1bEarthRadA);
-                res_a = length(l1bEarthIrr.DSCOVREpochTime);
+                l1bEarthIrrA = h5read(filename, NIConstants.hdfDataSet.l1bEarthRadA);
+                count.a.total = length(l1bEarthIrrA.DSCOVREpochTime);
             catch ME
                 if ME.identifier == "MATLAB:imagesci:h5read:libraryError"
                     fprintf('  No L1B earth irradiance band A dataset found in %s.\n', filename);
@@ -160,8 +160,8 @@ classdef NIHDF
                 end
             end
             try
-                l1bEarthIrr = h5read(filename, NIConstants.hdfDataSet.l1bEarthRadB);
-                res_b = length(l1bEarthIrr.DSCOVREpochTime);
+                l1bEarthIrrB = h5read(filename, NIConstants.hdfDataSet.l1bEarthRadB);
+                count.b.total = length(l1bEarthIrrB.DSCOVREpochTime);
             catch ME
                 if ME.identifier == "MATLAB:imagesci:h5read:libraryError"
                     fprintf('  No L1B earth irradiance band B dataset found in %s.\n', filename);
@@ -170,8 +170,8 @@ classdef NIHDF
                 end
             end
             try
-                l1bEarthIrr = h5read(filename, NIConstants.hdfDataSet.l1bEarthRadC);
-                res_c = length(l1bEarthIrr.DSCOVREpochTime);
+                l1bEarthIrrC = h5read(filename, NIConstants.hdfDataSet.l1bEarthRadC);
+                count.c.total = length(l1bEarthIrrC.DSCOVREpochTime);
             catch ME
                 if ME.identifier == "MATLAB:imagesci:h5read:libraryError"
                     fprintf('  No L1B earth irradiance band C dataset found in %s.\n', filename);
@@ -179,10 +179,32 @@ classdef NIHDF
                     warning(ME.identifier, '  Error while reading L1B earth irradiance band C dataset: %s', ME.message);
                 end
             end
-            
-            fprintf('   Number of L1B earth irradiance band A records: %d, percentage of missing records: %.2f\n', res_a, 100 * (86400 - res_a) / 86400);
-            fprintf('   Number of L1B earth irradiance band B records: %d, percentage of missing records: %.2f\n', res_b, 100 * (86400 - res_b) / 86400);
-            fprintf('   Number of L1B earth irradiance band C records: %d, percentage of missing records: %.2f\n', res_c, 100 * (86400 - res_c) / 86400);
+            if count.a.total > 0
+                count.a.interp1 = sum(l1bEarthIrrA.IsInterpolatedData == 1);
+                count.a.interp2 = sum(l1bEarthIrrA.IsInterpolatedData == 2);
+                fprintf('   Number of L1B earth irradiance band A records: %d (%.2f %%)\n', count.a.total, 100 * count.a.total / 86400);
+                fprintf('   Including linear interpolation records: %d\n', count.a.interp1);
+                fprintf('   Including neighbor-duplicated records: %d\n', count.a.interp2);
+                fprintf('   Percentage of missing records: %.2f\n', 100 * (86400 - count.a.total) / 86400);
+            end
+            if count.b.total > 0
+                count.b.interp1 = sum(l1bEarthIrrB.IsInterpolatedData == 1);
+                count.b.interp2 = sum(l1bEarthIrrB.IsInterpolatedData == 2);
+                count.b.interp3 = sum(l1bEarthIrrB.IsInterpolatedData == 3);
+                fprintf('   Number of L1B earth irradiance band B records: %d (%.2f %%)\n', count.b.total, 100 * count.b.total / 86400);
+                fprintf('   Including linear interpolation records: %d\n', count.b.interp1);
+                fprintf('   Including neighbor-duplicated records: %d\n', count.b.interp2);
+                fprintf('   Including photodiode-polyfit interpolation records: %d\n', count.b.interp3);
+                fprintf('   Percentage of missing records: %.2f\n', 100 * (86400 - count.b.total) / 86400);
+            end
+            if count.c.total > 0
+                count.c.interp1 = sum(l1bEarthIrrC.IsInterpolatedData == 1);
+                count.c.interp2 = sum(l1bEarthIrrC.IsInterpolatedData == 2);
+                fprintf('   Number of L1B earth irradiance band C records: %d (%.2f %%)\n', count.c.total, 100 * count.c.total / 86400);
+                fprintf('   Including linear interpolation records: %d\n', count.c.interp1);
+                fprintf('   Including neighbor-duplicated records: %d\n', count.c.interp2);
+                fprintf('   Percentage of missing records: %.2f\n', 100 * (86400 - count.c.total) / 86400);
+            end
         end
 
         function res = findAnomalousValuesInTimeSeries(time, data, value, equal_or_nonequal)
