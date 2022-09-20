@@ -41,18 +41,22 @@ classdef NIHDF
     end
 
     methods (Static)
-        function printInfoForSingleFile(filename, processing_level)
+        function printInfoForSingleFile(filename)
             arguments
                 filename string {mustBeFile}
-                processing_level string {mustBeMember(processing_level, {'1a', '1b'})}
             end
-            
+
+            idx = strfind(filename, 'nist_');
+            processing_str_idx = idx(end) + length('nist_');
+            processing_str = extractBetween(filename, processing_str_idx, processing_str_idx+1);
+            mustBeMember(processing_str, {'1a', '1b'});
+
             info = h5info(filename);
             fprintf('Filename: %s: \n', filename);
             fprintf('  File size: %.2f MB\n', dir(filename).bytes / 1024^2);
             fprintf('  Number of groups: %d\n', length(info.Groups));
 
-            if processing_level == '1a'
+            if processing_str{1} == '1a'
                 count_of_apid82 = NIHDF.analyzeHeatSinkData(filename);
                 count_of_l1arad = NIHDF.analyzeL1ARadiometerData(filename);
                 if count_of_l1arad > 0
@@ -146,9 +150,9 @@ classdef NIHDF
             arguments
                 filename string {mustBeFile}
             end
-            count = struct('a': struct('total', 0, 'interp1', 0, 'interp2', 0), 
-                        'b': struct('count', 0, 'interp1', 0, 'interp2', 0, 'interp3', 0),
-                        'c': struct('count', 0, 'interp1', 0, 'interp2', 0));
+            count = struct('a', struct('total', 0, 'interp1', 0, 'interp2', 0), ...
+                        'b', struct('count', 0, 'interp1', 0, 'interp2', 0, 'interp3', 0, 'lunar_corr', 0), ...
+                        'c', struct('count', 0, 'interp1', 0, 'interp2', 0));
             try
                 l1bEarthIrrA = h5read(filename, NIConstants.hdfDataSet.l1bEarthRadA);
                 count.a.total = length(l1bEarthIrrA.DSCOVREpochTime);
@@ -183,27 +187,29 @@ classdef NIHDF
                 count.a.interp1 = sum(l1bEarthIrrA.IsInterpolatedData == 1);
                 count.a.interp2 = sum(l1bEarthIrrA.IsInterpolatedData == 2);
                 fprintf('   Number of L1B earth irradiance band A records: %d (%.2f %%)\n', count.a.total, 100 * count.a.total / 86400);
-                fprintf('   Including linear interpolation records: %d\n', count.a.interp1);
-                fprintf('   Including neighbor-duplicated records: %d\n', count.a.interp2);
-                fprintf('   Percentage of missing records: %.2f\n', 100 * (86400 - count.a.total) / 86400);
+                fprintf('   -   Including linear interpolation records: %d\n', count.a.interp1);
+                fprintf('   -   Including neighbor-duplicated records: %d\n', count.a.interp2);
+                fprintf('   -   Percentage of missing records: %.2f\n', 100 * (86400 - count.a.total) / 86400);
             end
             if count.b.total > 0
                 count.b.interp1 = sum(l1bEarthIrrB.IsInterpolatedData == 1);
                 count.b.interp2 = sum(l1bEarthIrrB.IsInterpolatedData == 2);
                 count.b.interp3 = sum(l1bEarthIrrB.IsInterpolatedData == 3);
+                count.b.lunar_corr = sum(l1bEarthIrrB.LunarCorrection ~= 0);
                 fprintf('   Number of L1B earth irradiance band B records: %d (%.2f %%)\n', count.b.total, 100 * count.b.total / 86400);
-                fprintf('   Including linear interpolation records: %d\n', count.b.interp1);
-                fprintf('   Including neighbor-duplicated records: %d\n', count.b.interp2);
-                fprintf('   Including photodiode-polyfit interpolation records: %d\n', count.b.interp3);
-                fprintf('   Percentage of missing records: %.2f\n', 100 * (86400 - count.b.total) / 86400);
+                fprintf('   -   Including linear interpolation records: %d\n', count.b.interp1);
+                fprintf('   -   Including neighbor-duplicated records: %d\n', count.b.interp2);
+                fprintf('   -   Including photodiode-polyfit interpolation records: %d\n', count.b.interp3);
+                fprintf('   -   Including lunar intrusion corrected records: %d\n', count.b.lunar_corr);
+                fprintf('   -   Percentage of missing records: %.2f\n', 100 * (86400 - count.b.total) / 86400);
             end
             if count.c.total > 0
                 count.c.interp1 = sum(l1bEarthIrrC.IsInterpolatedData == 1);
                 count.c.interp2 = sum(l1bEarthIrrC.IsInterpolatedData == 2);
                 fprintf('   Number of L1B earth irradiance band C records: %d (%.2f %%)\n', count.c.total, 100 * count.c.total / 86400);
-                fprintf('   Including linear interpolation records: %d\n', count.c.interp1);
-                fprintf('   Including neighbor-duplicated records: %d\n', count.c.interp2);
-                fprintf('   Percentage of missing records: %.2f\n', 100 * (86400 - count.c.total) / 86400);
+                fprintf('   -   Including linear interpolation records: %d\n', count.c.interp1);
+                fprintf('   -   Including neighbor-duplicated records: %d\n', count.c.interp2);
+                fprintf('   -   Percentage of missing records: %.2f\n', 100 * (86400 - count.c.total) / 86400);
             end
         end
 
