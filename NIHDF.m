@@ -49,7 +49,7 @@ classdef NIHDF
                 processing_level string {mustBeMember(processing_level, {'1a', '1b'})}
                 directory string {mustBeFolder} = strcat(NIConstants.dir.root, NIConstants.dir.hdf)
             end
-
+            date_range = datenum(end_date, 'yyyymmdd') - datenum(start_date, 'yyyymmdd') + 1;
             filelist = NIHDF.getHDFFilenamesByDateRange(start_date, end_date, processing_level, directory);
             if processing_level == '1a'
                 total_count = struct('apid82', 0, 'rad', 0);
@@ -58,16 +58,18 @@ classdef NIHDF
                     total_count.apid82 = total_count.apid82 + count.apid82;
                     total_count.rad = total_count.rad + count.rad;
                 end
-                fprintf('Total count: %d APID82, %d RAD\n', total_count.apid82, total_count.rad);
+                fprintf('\nTotal count: %d APID82, %d RAD\n', total_count.apid82, total_count.rad);
             else
-                total_count = struct('demod', 0, 'irradiance', struct());
+                total_count = struct('demod', 0, 'irradiance', struct('a', struct('total', 0, 'interp1', 0, 'interp2', 0), ...
+                        'b', struct('total', 0, 'interp1', 0, 'interp2', 0, 'interp3', 0, 'lunar_corr', 0), ...
+                        'c', struct('total', 0, 'interp1', 0, 'interp2', 0)));
                 for i = 1:length(filelist)
                     count = NIHDF.printInfoForSingleFile(filelist(i).with_path);
                     total_count.demod = total_count.demod + count.demod;
                     total_count.irradiance = NIHDF.addIrradianceCounts(total_count.irradiance, count.irradiance);
                 end
-                fprintf('Total count: %d DEMOD \n', total_count.demod);
-                NIHDF.printIrradianceCounts(total_count.irradiance);
+                fprintf('\nTotal count: %d DEMOD (%.2f %%) \n', total_count.demod, 100 * total_count.demod/(date_range*86400));
+                NIHDF.printIrradianceCounts(total_count.irradiance, date_range);
             end
         end
 
@@ -95,8 +97,8 @@ classdef NIHDF
                 count = struct('apid82', 0, 'rad', 0);
                 count.apid82 = NIHDF.analyzeHeatSinkData(filename);
                 count.rad = NIHDF.analyzeL1ARadiometerData(filename);
-                if count_of_l1arad > 0
-                    fprintf('   Number of linear interpolated L1A radiometer data: %d\n', count_of_l1arad - count_of_apid82);
+                if count.rad > 0
+                    fprintf('   Number of linear interpolated L1A radiometer data: %d\n', count.rad - count.apid82);
                 end
                 count_of_non_nominal_fw = NIHDF.analyzeFilterWheelPositionData(filename);
                 if count_of_non_nominal_fw == 0
@@ -188,8 +190,8 @@ classdef NIHDF
                 filename string {mustBeFile}
             end
             count = struct('a', struct('total', 0, 'interp1', 0, 'interp2', 0), ...
-                        'b', struct('count', 0, 'interp1', 0, 'interp2', 0, 'interp3', 0, 'lunar_corr', 0), ...
-                        'c', struct('count', 0, 'interp1', 0, 'interp2', 0));
+                        'b', struct('total', 0, 'interp1', 0, 'interp2', 0, 'interp3', 0, 'lunar_corr', 0), ...
+                        'c', struct('total', 0, 'interp1', 0, 'interp2', 0));
             try
                 l1bEarthIrrA = h5read(filename, NIConstants.hdfDataSet.l1bEarthRadA);
                 count.a.total = length(l1bEarthIrrA.DSCOVREpochTime);
@@ -234,10 +236,10 @@ classdef NIHDF
                 count.c.interp1 = sum(l1bEarthIrrC.IsInterpolatedData == 1);
                 count.c.interp2 = sum(l1bEarthIrrC.IsInterpolatedData == 2);
             end
-            NIHDF.printIrradianceCounts(count);
+            NIHDF.printIrradianceCounts(count, 1);
         end
 
-        function addIrradianceCounts(counts, count)
+        function counts = addIrradianceCounts(counts, count)
             counts.a.total = counts.a.total + count.a.total;
             counts.a.interp1 = counts.a.interp1 + count.a.interp1;
             counts.a.interp2 = counts.a.interp2 + count.a.interp2;
@@ -251,21 +253,22 @@ classdef NIHDF
             counts.c.interp2 = counts.c.interp2 + count.c.interp2;
         end
 
-        function printIrradianceCounts(counts)
-            fprintf('   Number of L1B earth irradiance band A records: %d (%.2f %%)\n', counts.a.total, 100 * counts.a.total / 86400);
+        function printIrradianceCounts(counts, days)
+            total_seconds = days * 86400;
+            fprintf('   Number of L1B earth irradiance band A records: %d (%.2f %%)\n', counts.a.total, 100 * counts.a.total / total_seconds);
             fprintf('   -   Including linear interpolation records: %d\n', counts.a.interp1);
             fprintf('   -   Including neighbor-duplicated records: %d\n', counts.a.interp2);
-            fprintf('   -   Percentage of missing records: %.2f\n', 100 * (86400 - counts.a.total) / 86400);
-            fprintf('   Number of L1B earth irradiance band B records: %d (%.2f %%)\n', counts.b.total, 100 * counts.b.total / 86400);
+            fprintf('   -   Percentage of missing records: %.2f\n', 100 * (total_seconds - counts.a.total) / total_seconds);
+            fprintf('   Number of L1B earth irradiance band B records: %d (%.2f %%)\n', counts.b.total, 100 * counts.b.total / total_seconds);
             fprintf('   -   Including linear interpolation records: %d\n', counts.b.interp1);
             fprintf('   -   Including neighbor-duplicated records: %d\n', counts.b.interp2);
             fprintf('   -   Including photodiode-polyfit interpolation records: %d\n', counts.b.interp3);
             fprintf('   -   Including lunar intrusion corrected records: %d\n', counts.b.lunar_corr);
-            fprintf('   -   Percentage of missing records: %.2f\n', 100 * (86400 - counts.b.total) / 86400);
-            fprintf('   Number of L1B earth irradiance band C records: %d (%.2f %%)\n', counts.c.total, 100 * counts.c.total / 86400);
+            fprintf('   -   Percentage of missing records: %.2f\n', 100 * (total_seconds - counts.b.total) / total_seconds);
+            fprintf('   Number of L1B earth irradiance band C records: %d (%.2f %%)\n', counts.c.total, 100 * counts.c.total / total_seconds);
             fprintf('   -   Including linear interpolation records: %d\n', counts.c.interp1);
             fprintf('   -   Including neighbor-duplicated records: %d\n', counts.c.interp2);
-            fprintf('   -   Percentage of missing records: %.2f\n', 100 * (86400 - counts.c.total) / 86400);
+            fprintf('   -   Percentage of missing records: %.2f\n', 100 * (total_seconds - counts.c.total) / total_seconds);
         end
 
         function res = findAnomalousValuesInTimeSeries(time, data, value, equal_or_nonequal)
