@@ -493,7 +493,7 @@ classdef NIL1A
             arguments
                 jul_day1 (1,1) double
                 jul_day2 (1,1) double
-                options.directory (1,1) string = NIConstants.dir.root + filesep + NIConstants.dir.hdf
+                options.directory (1,1) string = strcat(NIConstants.dir.root, NIConstants.dir.hdf)
                 options.average (1,1) string = "none"
                 options.plotFlag (1,1) logical = false
             end
@@ -506,7 +506,7 @@ classdef NIL1A
             valid_file_count = 0;
             for jul_day = jul_day1:jul_day2
                 curr_datetime = NIDateTime.getCalendarDateFromJulianDay(jul_day);
-                date = datestr(curr_datetime + hours(12), 'yyyy-mm-dd');
+                date = datestr(curr_datetime + hours(12), 'yyyymmdd');
                 try
                     filename = NIHDF.getHDFFilenameByDate(date, '1a', options.directory);
                 catch ME
@@ -606,7 +606,7 @@ classdef NIL1A
                 plot(x_datetime_data, receiver_apid82_data.rc3_adc, '.');
                 subplot(2, 2, 4)
                 plot(x_datetime_data, receiver_apid82_data.hs_dac, '.');
-                stylize_figure(gcf, 6, 6);
+                stylize_figure(gcf, 6, 4);
                 figure;
                 subplot(2, 2, 1)
                 plot(x_datetime_data, receiver_apid82_data.rc1_ptc, '.');
@@ -616,7 +616,7 @@ classdef NIL1A
                 plot(x_datetime_data, receiver_apid82_data.rc3_ptc, '.');
                 subplot(2, 2, 4)
                 plot(x_datetime_data, receiver_apid82_data.hs_ptc, '.');
-                stylize_figure(gcf, 6, 6);
+                stylize_figure(gcf, 6, 4);
             end
         end
     end 
