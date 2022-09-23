@@ -50,15 +50,19 @@ classdef NIHDF
                 directory string {mustBeFolder} = strcat(NIConstants.dir.root, NIConstants.dir.hdf)
                 options.save_logs = false
                 options.save_csv = false
-                options.save_piecharts = false
             end
 
             if options.save_logs
-                diary strcat('hdf_info_', start_date, '_', end_date, '.log')
+                log_filename = strcat('hdf_info_', processing_level, '_', start_date, '_', end_date, '.log');
+                diary(log_filename)
             end
 
             if options.save_csv
-                fp = fopen(strcat('hdf_info_', start_date, '_', end_date, '.csv'), 'w');
+                fp = fopen(strcat('hdf_info_', processing_level, '_', start_date, '_', end_date, '.csv'), 'w');
+                fprintf(fp, '%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s,%s\n', ...
+                        'File', 'Demod', 'Band A Total', 'Band A Interp1', 'Band A Interp2', ...
+                        'Band B Total', 'Band B Interp1', 'Band B Interp2', 'Band B Interp3', 'Band B Lunar', ...
+                        'Band C Total', 'Band C Interp1', 'Band C Interp2', 'Missing');
             end
 
             date_range = datenum(end_date, 'yyyymmdd') - datenum(start_date, 'yyyymmdd') + 1;
@@ -81,29 +85,20 @@ classdef NIHDF
             else
                 total_count = struct('demod', 0, 'irradiance', struct('a', struct('total', 0, 'interp1', 0, 'interp2', 0), ...
                         'b', struct('total', 0, 'interp1', 0, 'interp2', 0, 'interp3', 0, 'lunar_corr', 0), ...
-                        'c', struct('total', 0, 'interp1', 0, 'interp2', 0)));
+                        'c', struct('total', 0, 'interp1', 0, 'interp2', 0)), 'missing', 0);
                 for i = 1:length(filelist)
                     count = NIHDF.printInfoForSingleFile(filelist(i).with_path);
                     total_count.demod = total_count.demod + count.demod;
                     total_count.irradiance = NIHDF.addIrradianceCounts(total_count.irradiance, count.irradiance);
+                    total_count.missing = total_count.missing + count.missing;
                     if options.save_csv
-                        fprintf(fp, '%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n', count.demod, ...
-                            count.irradiance.a.total, count.irradiance.a.interp1, count.irradiance.a.interp2, ...
-                            count.irradiance.b.total, count.irradiance.b.interp1, count.irradiance.b.interp2, count.irradiance.b.interp3, count.irradiance.b.lunar_corr, ...
-                            count.irradiance.c.total, count.irradiance.c.interp1, count.irradiance.c.interp2);
+                        NIHDF.writeCountsToCSVLine(fp, filelist(i).no_path, count);
                     end
                 end
-                fprintf('\nTotal count: %d DEMOD (%.2f %%) \n', total_count.demod, 100 * total_count.demod/(date_range*86400));
-                NIHDF.printIrradianceCounts(total_count.irradiance, date_range);
+                NIHDF.printIrradianceCounts(total_count, date_range);
                 if options.save_csv
-                    fprintf(fp, '%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n', total_count.demod, ...
-                        total_count.irradiance.a.total, total_count.irradiance.a.interp1, total_count.irradiance.a.interp2, ...
-                        total_count.irradiance.b.total, total_count.irradiance.b.interp1, total_count.irradiance.b.interp2, total_count.irradiance.b.interp3, total_count.irradiance.b.lunar_corr, ...
-                        total_count.irradiance.c.total, total_count.irradiance.c.interp1, total_count.irradiance.c.interp2);
+                    NIHDF.writeCountsToCSVLine(fp, 'Total', total_count);
                 end
-            end
-            if options.save_piecharts
-                NIHDF.savePieChart(total_count, processing_level, start_date, end_date);
             end
             if options.save_logs
                 diary off
@@ -146,12 +141,11 @@ classdef NIHDF
                     fprintf('   All filter wheel positions are nominal.\n');
                 end
             else
-                count = struct('demod', 0, 'irradiance', struct(), 'missing', zeros(1, 3));
+                count = struct('demod', 0, 'irradiance', struct(), 'missing', 0);
                 count.demod = NIHDF.analyzeDemodulatorData(filename);
                 count.irradiance = NIHDF.analyzeEarthIrradianceData(filename);
-                count.missing(1) = 86400 - count.irradiance.a.total;
-                count.missing(2) = 86400 - count.irradiance.b.total;
-                count.missing(3) = 86400 - count.irradiance.c.total;
+                count.missing = 86400 - count.demod;
+                NIHDF.printIrradianceCounts(count, 1);
             end
         end
 
@@ -280,7 +274,6 @@ classdef NIHDF
                 count.c.interp1 = sum(l1bEarthIrrC.IsInterpolatedData == 1);
                 count.c.interp2 = sum(l1bEarthIrrC.IsInterpolatedData == 2);
             end
-            NIHDF.printIrradianceCounts(count, 1);
         end
 
         function counts = addIrradianceCounts(counts, count)
@@ -299,21 +292,29 @@ classdef NIHDF
 
         function printIrradianceCounts(counts, days)
             total_seconds = days * 86400;
-            fprintf('   Number of L1B earth irradiance band A records: %d (%.2f %%)\n', counts.a.total, 100 * counts.a.total / total_seconds);
-            fprintf('   -   Including linear interpolation records: %d\n', counts.a.interp1);
-            fprintf('   -   Including neighbor-duplicated records: %d\n', counts.a.interp2);
-            fprintf('   -   Percentage of missing records: %.2f\n', 100 * (total_seconds - counts.a.total) / total_seconds);
-            fprintf('   Number of L1B earth irradiance band B records: %d (%.2f %%)\n', counts.b.total, 100 * counts.b.total / total_seconds);
-            fprintf('   -   Including linear interpolation records: %d\n', counts.b.interp1);
-            fprintf('   -   Including neighbor-duplicated records: %d\n', counts.b.interp2);
-            fprintf('   -   Including photodiode-polyfit interpolation records: %d\n', counts.b.interp3);
-            fprintf('   -   Including lunar intrusion corrected records: %d\n', counts.b.lunar_corr);
-            fprintf('   -   Percentage of missing records: %.2f\n', 100 * (total_seconds - counts.b.total) / total_seconds);
-            fprintf('   Number of L1B earth irradiance band C records: %d (%.2f %%)\n', counts.c.total, 100 * counts.c.total / total_seconds);
-            fprintf('   -   Including linear interpolation records: %d\n', counts.c.interp1);
-            fprintf('   -   Including neighbor-duplicated records: %d\n', counts.c.interp2);
-            fprintf('   -   Percentage of missing records: %.2f\n', 100 * (total_seconds - counts.c.total) / total_seconds);
+            fprintf('\nTotal count: %d DEMOD (%.2f %% of full time period) \n', counts.demod, 100 * counts.demod/total_seconds);
+            fprintf('   Number of L1B earth irradiance band A records: %d (%.2f %%)\n', counts.irradiance.a.total, 100 * counts.irradiance.a.total / total_seconds);
+            fprintf('   -   Including linear interpolation records: %d\n', counts.irradiance.a.interp1);
+            fprintf('   -   Including neighbor-duplicated records: %d\n', counts.irradiance.a.interp2);
+            fprintf('   Number of non-nominal (non-Earth view, calibrations, spacecraft manuevers, etc.) records: %d, (%.2f %%)\n', counts.demod - counts.irradiance.a.total, 100 * (counts.demod - counts.irradiance.a.total) / total_seconds);
+            fprintf('   Number of L1B earth irradiance band B records: %d (%.2f %%)\n', counts.irradiance.b.total, 100 * counts.irradiance.b.total / total_seconds);
+            fprintf('   -   Including linear interpolation records: %d\n', counts.irradiance.b.interp1);
+            fprintf('   -   Including neighbor-duplicated records: %d\n', counts.irradiance.b.interp2);
+            fprintf('   -   Including photodiode-polyfit interpolation records: %d\n', counts.irradiance.b.interp3);
+            fprintf('   -   Including lunar intrusion corrected records: %d\n', counts.irradiance.b.lunar_corr);
+            fprintf('   Number of non-nominal (non-Earth view, calibrations, spacecraft manuevers, etc.) records: %d, (%.2f %%)\n', counts.demod - counts.irradiance.b.total, 100 * (counts.demod - counts.irradiance.b.total) / total_seconds);
+            fprintf('   Number of L1B earth irradiance band C records: %d (%.2f %%)\n', counts.irradiance.c.total, 100 * counts.irradiance.c.total / total_seconds);
+            fprintf('   -   Including linear interpolation records: %d\n', counts.irradiance.c.interp1);
+            fprintf('   -   Including neighbor-duplicated records: %d\n', counts.irradiance.c.interp2);
+            fprintf('   Number of non-nominal (non-Earth view, calibrations, spacecraft manuevers, etc.) records: %d, (%.2f %%)\n', counts.demod - counts.irradiance.c.total, 100 * (counts.demod - counts.irradiance.c.total) / total_seconds);
+        end
 
+        function writeCountsToCSVLine(fp, first_col_str, count)
+            fprintf(fp, '%s,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d,%d\n', first_col_str, count.demod, ...
+                            count.irradiance.a.total, count.irradiance.a.interp1, count.irradiance.a.interp2, ...
+                            count.irradiance.b.total, count.irradiance.b.interp1, count.irradiance.b.interp2, count.irradiance.b.interp3, count.irradiance.b.lunar_corr, ...
+                            count.irradiance.c.total, count.irradiance.c.interp1, count.irradiance.c.interp2, ...
+                            count.missing);
         end
 
         function res = findAnomalousValuesInTimeSeries(time, data, value, equal_or_nonequal)
@@ -359,43 +360,5 @@ classdef NIHDF
             end
         end
 
-        function savePieChart(count, processing_level, start_date, end_date)
-            % save pie chart
-            % count: total number of records
-            % processing_level: processing level
-            % start_date: start date
-            % end_date: end date
-            % return: none
-
-            figure;
-            if processing_level == '1a'
-                labels = ['AppID82', 'Linear Interpolated', 'Missing'];
-                counts = [count.apid82, count.rad - count.apid82, count.missing];
-                pie(counts, labels);
-            elseif processing_level == '1b'                
-                subplot(1, 3, 1);
-                labels = ['Demod', 'Not Nominal', 'From Measurement', 'From Interpolation', 'From Duplication'];
-                counts = [count.demod, count.demod - count.a.total, ...
-                    count.a.total - count.a.interp1 - count.a.interp2, count.a.interp1, count.a.interp2];
-                title('Earth Irradiance Band A');
-                pie(counts, labels);
-                subplot(1, 3, 2);
-                labels = ['Demod', 'Not Nominal', 'From Measurement', 'From Interpolation', 'From Duplication', ...
-                    'Photodiode Polyfit', 'Lunar Correction'];
-                counts = [count.demod, count.demod - count.b.total, ...
-                    count.b.total - count.b.interp1 - count.b.interp2 - count.b.interp3 - count.b.lunar_corr, ...
-                    count.b.interp1, count.b.interp2, count.b.interp3, count.b.lunar_corr];
-                title('Earth Irradiance Band B');
-                pie(counts, labels);
-                subplot(1, 3, 3);
-                labels = ['Demod', 'Not Nominal', 'From Measurement', 'From Interpolation', 'From Duplication'];
-                counts = [count.demod, count.demod - count.c.total, ...
-                    count.c.total - count.c.interp1 - count.c.interp2, count.c.interp1, count.c.interp2];
-                title('Earth Irradiance Band C');
-                pie(counts, labels);
-            end
-            title(sprintf('HDF level %s product records from %s to %s', processing_level, datestr(start_date, 'yyyy-mm-dd'), datestr(end_date, 'yyyy-mm-dd')));
-            saveas(gcf, sprintf('hdf_info_%s_%s_%s.png', processing_level, datestr(start_date, 'yyyy-mm-dd'), datestr(end_date, 'yyyy-mm-dd')));
-        end
     end
 end
