@@ -456,5 +456,169 @@ classdef NIL1A
         end
     end
 
+    methods (Static)
+        function receiver_apid82_data = readReceiverAppID82(jul_day1, jul_day2, options)
+            %readReceiverAppID82 Read receiver data from /Science_Data/ScienceData in Level 1A product
+            %Also including data of the heatsink heater DAC power and PTC.
+            %   receiver_apid82_data = NIL1A.readReceiverAppID82(jul_day1, jul_day2, options)
+            %   Inputs:
+            %    jul_day1: first Julian day
+            %    jul_day2: last Julian day (inclusive)
+            %    options:
+            %       directory: directory of the HDF files, default is
+            %           NIConstants.dir.root/NIConstants.dir.hdf
+            %       average: option to show averaged data, options include
+            %           '4-shutter', 'hourly', '2-hour', default is 'none'
+            %       plotFlag: plot the data or not, default is false
+            %   Outputs:
+            %       receiver_apid82_data: structure containing the receiver data
+            %           receiver_apid82_data.time: time in DSCOVR epoch 
+            %           receiver_apid82_data.rc1_adc: receiver 1 heater ADC
+            %           receiver_apid82_data.rc2_adc: receiver 2 heater ADC
+            %           receiver_apid82_data.rc3_adc: receiver 3 heater ADC
+            %           receiver_apid82_data.hs_dac: heat sink heater DAC (same as NIL1A.readHeatSink)
+            %           receiver_apid82_data.rc1_shutter: receiver 1 shutter
+            %           receiver_apid82_data.rc2_shutter: receiver 2 shutter
+            %           receiver_apid82_data.rc3_shutter: receiver 3 shutter
+            %           receiver_apid82_data.rc1_ptc: receiver 1 PTC
+            %           receiver_apid82_data.rc2_ptc: receiver 2 PTC
+            %           receiver_apid82_data.rc3_ptc: receiver 3 PTC
+            %           receiver_apid82_data.hs_ptc: heat sink PTC
+            %           receiver_apid82_data.autocycle: shutter autocycle status (0: off, 1: on)
+            %           receiver_apid82_data.rc1_bit: receiver 1 shutter BIT (0: error, 1: normal)
+            %           receiver_apid82_data.rc2_bit: receiver 2 shutter BIT (0: error, 1: normal)
+            %           receiver_apid82_data.rc3_bit: receiver 3 shutter BIT (0: error, 1: normal)
+            %           receiver_apid82_data.fw_pos: filter wheel position (same as NIL1A.readFilterWheel)
+
+            arguments
+                jul_day1 (1,1) double
+                jul_day2 (1,1) double
+                options.directory (1,1) string = NIConstants.dir.root + filesep + NIConstants.dir.hdf
+                options.average (1,1) string = "none"
+                options.plotFlag (1,1) logical = false
+            end
+            fprintf('\n');
+            receiver_apid82_data = struct('time', [], 'rc1_adc', [], 'rc2_adc', [], 'rc3_adc', [], ...
+                'hs_dac', [], 'rc1_shutter', [], 'rc2_shutter', [], 'rc3_shutter', [], ...
+                'rc1_ptc', [], 'rc2_ptc', [], 'rc3_ptc', [], 'hs_ptc', [], ...
+                'autocycle', [], 'rc1_bit', [], 'rc2_bit', [], 'rc3_bit', [], 'fw_pos', []);
+
+            valid_file_count = 0;
+            for jul_day = jul_day1:jul_day2
+                curr_datetime = NIDateTime.getCalendarDateFromJulianDay(jul_day);
+                date = datestr(curr_datetime + hours(12), 'yyyy-mm-dd');
+                try
+                    filename = NIHDF.getHDFFilenameByDate(date, '1a', options.directory);
+                catch ME
+                    warning('Failed to find L1A product for Julian day %d in the path %s', jul_day, options.directory);
+                    fprintf('%s', ME.message);
+                    continue;
+                end
+                fprintf('Reading L1A HDF file %s (%s to %s)...\n', filename.no_path, datestr(curr_datetime), datestr(curr_datetime + days(1)));
+                try
+                    apid82 = h5read(filename.with_path, NIConstants.hdfDataSet.l1aScience);
+                catch ME
+                    warning('Failed to read L1A product for Julian day %d in the path %s', jul_day, options.directory);
+                    fprintf('%s', ME.message);
+                    continue;
+                end
+                valid_file_count = valid_file_count + 1;
+                receiver_apid82_data.time = [receiver_apid82_data.time; apid82.H052TIME];
+                receiver_apid82_data.rc1_adc = [receiver_apid82_data.rc1_adc; apid82.NIRC1HADCMFLAVG];
+                receiver_apid82_data.rc2_adc = [receiver_apid82_data.rc2_adc; apid82.NIRC2HADCMFLAVG];
+                receiver_apid82_data.rc3_adc = [receiver_apid82_data.rc3_adc; apid82.NIRC3HADCMFLAVG];
+                receiver_apid82_data.hs_dac = [receiver_apid82_data.hs_dac; apid82.NIHSHDACCMDAVG];
+                receiver_apid82_data.rc1_shutter = [receiver_apid82_data.rc1_shutter; apid82.NIRC1PRESHPOSNUM];
+                receiver_apid82_data.rc2_shutter = [receiver_apid82_data.rc2_shutter; apid82.NIRC2PRESHPOSNUM];
+                receiver_apid82_data.rc3_shutter = [receiver_apid82_data.rc3_shutter; apid82.NIRC3PRESHPOSNUM];
+                receiver_apid82_data.rc1_ptc = [receiver_apid82_data.rc1_ptc; apid82.NIRC1PTCMRESAVG];
+                receiver_apid82_data.rc2_ptc = [receiver_apid82_data.rc2_ptc; apid82.NIRC2PTCMRESAVG];
+                receiver_apid82_data.rc3_ptc = [receiver_apid82_data.rc3_ptc; apid82.NIRC3PTCMRESAVG];
+                receiver_apid82_data.hs_ptc = [receiver_apid82_data.hs_ptc; apid82.NIHSPTCMRESAVG];
+                receiver_apid82_data.autocycle = [receiver_apid82_data.autocycle; apid82.NIAUTOCYCLE];
+                receiver_apid82_data.rc1_bit = [receiver_apid82_data.rc1_bit; apid82.NIRC1SHTRBIT];
+                receiver_apid82_data.rc2_bit = [receiver_apid82_data.rc2_bit; apid82.NIRC2SHTRBIT];
+                receiver_apid82_data.rc3_bit = [receiver_apid82_data.rc3_bit; apid82.NIRC3SHTRBIT];
+                receiver_apid82_data.fw_pos = [receiver_apid82_data.fw_pos; apid82.NIPREFWPOSNUM];
+            end
+            if valid_file_count == 0
+                error('No valid L1A product found in the path %s', options.directory);
+            end
+            fprintf('\nRead %d records from %d valid L1A products.\', length(receiver_apid82_data.time), valid_file_count);
+            fprintf('First record: %s\n', datestr(receiver_apid82_data.time(1)));
+            fprintf('Last record: %s\n', datestr(receiver_apid82_data.time(end)));
+
+            if options.average ~= "none"
+                if strcmp(options.average, '4-shutter')
+                    average_window = 4*NIConstants.receivers.shutter_period;
+                elseif strcmp(options.average, 'hourly')
+                    average_window = 3600;
+                elseif strcmp(options.average, '2-hour')
+                    average_window = 2*3600;
+                else
+                    error('Invalid averaging option: %s', options.average);
+                end
+                fprintf('Averaging data over %s...\n', options.average);
+                step = average_window;
+                averaged_rc1_adc = running_ave(receiver_apid82_data.time, receiver_apid82_data.rc1_adc, average_window, step);
+                averaged_rc2_adc = running_ave(receiver_apid82_data.time, receiver_apid82_data.rc2_adc, average_window, step);
+                averaged_rc3_adc = running_ave(receiver_apid82_data.time, receiver_apid82_data.rc3_adc, average_window, step);
+                averaged_hs_dac = running_ave(receiver_apid82_data.time, receiver_apid82_data.hs_dac, average_window, step);
+                averaged_rc1_shutter = running_ave(receiver_apid82_data.time, receiver_apid82_data.rc1_shutter, average_window, step);
+                averaged_rc2_shutter = running_ave(receiver_apid82_data.time, receiver_apid82_data.rc2_shutter, average_window, step);
+                averaged_rc3_shutter = running_ave(receiver_apid82_data.time, receiver_apid82_data.rc3_shutter, average_window, step);
+                averaged_rc1_ptc = running_ave(receiver_apid82_data.time, receiver_apid82_data.rc1_ptc, average_window, step, method='median');
+                averaged_rc2_ptc = running_ave(receiver_apid82_data.time, receiver_apid82_data.rc2_ptc, average_window, step, method='median');
+                averaged_rc3_ptc = running_ave(receiver_apid82_data.time, receiver_apid82_data.rc3_ptc, average_window, step, method='median');
+                averaged_hs_ptc = running_ave(receiver_apid82_data.time, receiver_apid82_data.hs_ptc, average_window, step, method='median');
+                averaged_autocycle = running_ave(receiver_apid82_data.time, receiver_apid82_data.autocycle, average_window, step, method='median');
+                averaged_rc1_bit = running_ave(receiver_apid82_data.time, receiver_apid82_data.rc1_bit, average_window, step, method='median');
+                averaged_rc2_bit = running_ave(receiver_apid82_data.time, receiver_apid82_data.rc2_bit, average_window, step, method='median');
+                averaged_rc3_bit = running_ave(receiver_apid82_data.time, receiver_apid82_data.rc3_bit, average_window, step, method='median');
+                averaged_fw_pos = running_ave(receiver_apid82_data.time, receiver_apid82_data.fw_pos, average_window, step, method='median');
+                receiver_apid82_data.time = averaged_rc1_adc.time;
+                receiver_apid82_data.rc1_adc = averaged_rc1_adc.data;
+                receiver_apid82_data.rc2_adc = averaged_rc2_adc.data;
+                receiver_apid82_data.rc3_adc = averaged_rc3_adc.data;
+                receiver_apid82_data.hs_dac = averaged_hs_dac.data;
+                receiver_apid82_data.rc1_shutter = averaged_rc1_shutter.data;
+                receiver_apid82_data.rc2_shutter = averaged_rc2_shutter.data;
+                receiver_apid82_data.rc3_shutter = averaged_rc3_shutter.data;
+                receiver_apid82_data.rc1_ptc = averaged_rc1_ptc.data;
+                receiver_apid82_data.rc2_ptc = averaged_rc2_ptc.data;
+                receiver_apid82_data.rc3_ptc = averaged_rc3_ptc.data;
+                receiver_apid82_data.hs_ptc = averaged_hs_ptc.data;
+                receiver_apid82_data.autocycle = averaged_autocycle.data;
+                receiver_apid82_data.rc1_bit = averaged_rc1_bit.data;
+                receiver_apid82_data.rc2_bit = averaged_rc2_bit.data;
+                receiver_apid82_data.rc3_bit = averaged_rc3_bit.data;
+                receiver_apid82_data.fw_pos = averaged_fw_pos.data;
+            end
+
+            if options.plotFlag
+                x_datetime_data = NIDateTime.getCalendarDateFromDSCOVREpoch(receiver_apid82_data.time);
+                figure;
+                subplot(2, 2, 1)
+                plot(x_datetime_data, receiver_apid82_data.rc1_adc, '.');
+                subplot(2, 2, 2)
+                plot(x_datetime_data, receiver_apid82_data.rc2_adc, '.');
+                subplot(2, 2, 3)
+                plot(x_datetime_data, receiver_apid82_data.rc3_adc, '.');
+                subplot(2, 2, 4)
+                plot(x_datetime_data, receiver_apid82_data.hs_dac, '.');
+                stylize_figure(gcf, 6, 6);
+                figure;
+                subplot(2, 2, 1)
+                plot(x_datetime_data, receiver_apid82_data.rc1_ptc, '.');
+                subplot(2, 2, 2)
+                plot(x_datetime_data, receiver_apid82_data.rc2_ptc, '.');
+                subplot(2, 2, 3)
+                plot(x_datetime_data, receiver_apid82_data.rc3_ptc, '.');
+                subplot(2, 2, 4)
+                plot(x_datetime_data, receiver_apid82_data.hs_ptc, '.');
+                stylize_figure(gcf, 6, 6);
+            end
+        end
+    end 
 end
 
