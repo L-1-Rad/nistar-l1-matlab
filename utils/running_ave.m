@@ -11,6 +11,9 @@ function average = running_ave(time, data, window, step, options)
 %   step:       step size in seconds
 %   options:
 %       .data_rate:     sample rate of the input data in seconds, default = 1
+%       .first_index:   specify the first index to use in averaging, default = 1
+%       .last_index:    specify the last index to use in averaging, default
+%           = [] (using the last value)
 %       .method:        'mean' or 'median', default = 'mean'
 %       .percentage:    minimum percentage of data points in the window to calculate the average, default = 70
 %       .output_time:   'center' or 'averaged', default = 'center'
@@ -33,6 +36,8 @@ arguments
     window (1,1) double
     step (1,1) double
     options.data_rate (1,1) double = 1
+    options.first_index (1,1) double {mustBePositive, mustBeInteger} = 1
+    options.last_index (1,1) double {mustBePositive, mustBeInteger} = []
     options.method (1,1) string = "mean"
     options.percentage (1,1) double {mustBeGreaterThanOrEqual(options.percentage, 0) ...
         mustBeLessThanOrEqual(options.percentage, 100)} = 70
@@ -40,8 +45,17 @@ arguments
     options.plot (1,1) logical = false
 end
 
+if isempty(options.last_index)
+    last_time_stamp = time(end);
+else
+    last_time_stamp = time(options.last_index);
+end
+first_time_stamp = time(options.first_index);
+if first_time_stamp > last_time_stamp
+    error('The specify first time stamp is greater than the last time stamp');
+end
 % determine the number of averages
-num_averages = floor((time(end)- time(1)) /(step / options.data_rate)) + 1;
+num_averages = floor((last_time_stamp - first_time_stamp) /(step / options.data_rate)) + 1;
 if num_averages < 1
     error('The step size is too large for the data');
 end
@@ -51,7 +65,7 @@ fprintf('Number of averages: %d\n', num_averages);
 window_size = window / options.data_rate;
 
 % initialize the averaged vectors
-average.time = time(1) + (0:(num_averages-1)) * step + window/2;
+average.time = first_time_stamp + (0:(num_averages-1)) * step + window/2;
 average.data = nan(num_averages, 1);
 average.std = nan(num_averages, 1);
 average.n = zeros(num_averages, 1);
@@ -59,8 +73,8 @@ average.n = zeros(num_averages, 1);
 % calculate the averages
 
 % use binary search to find the indexes of the first window
-start_index = binary_search_right(time, average.time(i) - window/2, warn=false);
-end_index = binary_search_right(time, average.time(i) + window/2, warn=false) - 1; % -1 because it is MATLAB
+start_index = binary_search_right(time, average.time(1) - window/2, warn=false);
+end_index = binary_search_right(time, average.time(1) + window/2, warn=false) - 1; % -1 because it is MATLAB
 
 % determine the number of data points in the window
 average.n(1) = sum(~isnan(data(start_index:end_index)));
@@ -134,4 +148,3 @@ if options.plot
     plot(average.time, average.data, 'r.', MarkerSize=8);
     stylize_figure(gcf, 8, 6, ax_override_line_color=false, ax_override_marker_size=false);
 end
-

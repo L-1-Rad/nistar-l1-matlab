@@ -26,7 +26,7 @@ classdef NIDiagnostic
                 options.output_dir (1,1) string = strcat(NIConstants.dir.root, NIConstants.dir.hdf)
             end
 
-            start_jul_day = NIDateTime.getJulianDateFromCalendarDate(year, month, 30, 12);
+            start_jul_day = NIDateTime.getJulianDateFromCalendarDate(year, month, 0, 12);
             end_jul_day = NIDateTime.getJulianDateFromCalendarDate(year, month, eomday(year, month), 12);
 
             % read apid82 data
@@ -41,7 +41,7 @@ classdef NIDiagnostic
             l1a_pd_data = NIL1A.readL1APhotodiode(start_jul_day, end_jul_day);
 
             % convert into writeable format
-            % w_instru_data = NIDiagnostic.convertToInstrumentData(receiver_apid82_data, l1a_pd_data);
+            w_instru_data = NIDiagnostic.convertToInstrumentData(receiver_apid82_data, l1a_pd_data);
 
             % create HDF file
             hdf_file_name = sprintf('nist_diagnostic_data_%d%02d.h5', year, month);
@@ -49,7 +49,7 @@ classdef NIDiagnostic
             hdf_file = H5F.create(hdf_file_path, 'H5F_ACC_TRUNC', 'H5P_DEFAULT', 'H5P_DEFAULT');
 
             % write apid82 data to HDF file
-            % NIDiagnostic.writeInstrumentData(hdf_file, w_instru_data);
+            NIDiagnostic.writeInstrumentData(hdf_file, w_instru_data);
 
             fprintf('Wrote instrument data to %s\n', hdf_file_path);
 
@@ -69,7 +69,7 @@ classdef NIDiagnostic
 
 
             % update the status code in instrument data
-            w_instru_data = NIDiagnostic.updateInstrumentDataStatus(w_instru_data, w_ephemeris_data);
+            % w_instru_data = NIDiagnostic.updateInstrumentDataStatus(w_instru_data, w_ephemeris_data);
 
             % write ephemeris data to HDF file
             NIDiagnostic.writeEphemerisData(hdf_file, w_ephemeris_data);
@@ -292,8 +292,8 @@ classdef NIDiagnostic
             end
         end
 
-        function w_instru_data = updateInstrumentDataStatus(w_instru_data, w_ephemeris_data)
-
-        end
+%         function w_instru_data = updateInstrumentDataStatus(w_instru_data, w_ephemeris_data)
+% 
+%         end
     end
 end
