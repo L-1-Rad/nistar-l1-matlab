@@ -57,14 +57,56 @@ average.std = nan(num_averages, 1);
 average.n = zeros(num_averages, 1);
 
 % calculate the averages
-for i = 1:num_averages
 
-    % determine the start and end indices of the window by binary search
-    start_index = binary_search_right(time, average.time(i) - window/2, warn=false);
-    end_index = binary_search_right(time, average.time(i) + window/2, warn=false) - 1; % -1 because it is MATLAB
-    if start_index == -1 || start_index == end_index
-        continue
+% use binary search to find the indexes of the first window
+start_index = binary_search_right(time, average.time(i) - window/2, warn=false);
+end_index = binary_search_right(time, average.time(i) + window/2, warn=false) - 1; % -1 because it is MATLAB
+
+% determine the number of data points in the window
+average.n(1) = sum(~isnan(data(start_index:end_index)));
+    
+% determine the percentage of data points in the window
+percentage = average.n(1) / window_size * 100;
+
+% calculate the average if the percentage is above the threshold
+if percentage >= options.percentage
+    if options.method == "mean"
+        average.data(1) = mean(data(start_index:end_index), 'omitnan');
+        average.std(1) = std(data(start_index:end_index), 'omitnan');
+    elseif options.method == "median"
+        average.data(1) = median(data(start_index:end_index), 'omitnan');
     end
+    if options.output_time == "averaged"
+        average.time(1) = mean(time(start_index:end_index));
+    end
+end
+
+for i = 2:num_averages
+
+    % find the indexes of the window, since the average.time increases by
+    % step, the indexes of the window will increase by step/data_rate if
+    % there is no missing data. If there is missing data, the time stamp of
+    % the window will be larger than the time stamp of the data, this signals
+    % that the naive search is not working. In this case, we use binary search
+    % to find the indexes of the window. 
+
+    naive_start_index = start_index + round(step / options.data_rate);
+    naive_end_index = end_index + round(step / options.data_rate);
+    if time(naive_start_index) - options.data_rate/2 > average.time(i) - window/2 || time(naive_end_index) - options.data_rate/2 > average.time(i) + window/2
+        % binary search
+        start_index = binary_search_right(time, average.time(i) - window/2, warn=false);
+        end_index = binary_search_right(time, average.time(i) + window/2, warn=false) - 1; % -1 because it is MATLAB
+        if start_index == -1 || start_index == end_index
+            continue
+        end
+    else
+        % naive search
+        start_index = naive_start_index;
+        end_index = naive_end_index;
+        start_index = min(start_index, length(time));
+        end_index = min(end_index, length(time));
+    end
+    
     % determine the number of data points in the window
     average.n(i) = sum(~isnan(data(start_index:end_index)));
     

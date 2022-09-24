@@ -67,6 +67,10 @@ classdef NIDiagnostic
                 lunar_ephemeris_data, solar_ephemeris_data, attitude_data, earth_subsatellite_data, ...
                 lunar_subsatellite_data);
 
+
+            % update the status code in instrument data
+            w_instru_data = NIDiagnostic.updateInstrumentDataStatus(w_instru_data, w_ephemeris_data);
+
             % write ephemeris data to HDF file
             NIDiagnostic.writeEphemerisData(hdf_file, w_ephemeris_data);
 
@@ -270,8 +274,8 @@ classdef NIDiagnostic
                 try
                     wdata.dscLat(i) = earth_subsatellite_data.lat(i);
                     wdata.dscLon(i) = earth_subsatellite_data.lon(i);
-                    wdata.lunLat(i, :) = lunar_subsatellite_data.lat(i);
-                    wdata.lunLon(i, :) = lunar_subsatellite_data.lon(i);
+                    wdata.lunLat(i) = lunar_subsatellite_data.lat(i);
+                    wdata.lunLon(i) = lunar_subsatellite_data.lon(i);
                 catch ME
                     warning(['Earth/Moon Subsatellite Point data does not have the same length: ...' ...
                         'Earth: %d, Moon: %d\n'], length(earth_subsatellite_data.time), length(lunar_subsatellite_data.time));
@@ -286,6 +290,10 @@ classdef NIDiagnostic
                     continue;
                 end              
             end
+        end
+
+        function w_instru_data = updateInstrumentDataStatus(w_instru_data, w_ephemeris_data)
+
         end
     end
 end
