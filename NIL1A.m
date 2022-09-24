@@ -141,7 +141,7 @@ classdef NIL1A
                 options.plotFlag logical = false
             end
             fprintf('\n');
-            l1aNV = struct('time', [], 'view', [], 'earthDev', [], 'moonDev', [], 'earthFOV', [], ...
+            l1aNV = struct('time', [], 'view', [], 'earthDev', struct('y',[], 'z',[], 'mag',[]), 'moonDev', struct('y',[], 'z',[], 'mag',[]), 'earthFOV', [], ...
                 'earthFOR', [], 'moonFOV', [], 'moonFOR', [], 'moonPhase', [], 'earthMoonSep', [], 'angleSEV', []);
 
             valid_file_count = 0;
@@ -833,7 +833,8 @@ classdef NIL1A
                 jul_day1 double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day1, 2457203.5)}
                 jul_day2 double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day2, jul_day1)} = jul_day1
                 object char {mustBeMember(object, {'earth', 'moon', 'lunar'})} = 'earth'
-                options.directory = fullfile(NIConstants.dir.root, NIConstants.dir.hdf)
+                options.directory string {mustBeFolder} = fullfile(NIConstants.dir.root, NIConstants.dir.hdf)
+                options.plotFlag logical = false 
             end
 
             fprintf('\n');
@@ -854,7 +855,7 @@ classdef NIL1A
                 if object == "earth"
                     dataset = NIConstants.hdfDataSet.l1aEarthSubsatellite;
                 else
-                    dataset = NIConstants.hdfDataSet.l1aMoonSubsatellite;
+                    dataset = NIConstants.hdfDataSet.l1aLunarSubsatellite;
                 end
 
                 fprintf('Reading L1A HDF file %s (%s to %s)...\n', filename.no_path, datestr(curr_datetime), datestr(curr_datetime + days(1)));

@@ -76,6 +76,8 @@ classdef NIConstants
             hdfDataSet.l1aSunEphemeris = '/Geolocation_Data/SolarEphemeris';
             hdfDataSet.l1aMoonEphemeris = '/Geolocation_Data/LunarEphemeris';
             hdfDataSet.l1aAttitude = '/Geolocation_Data/InstrumentAttitudeMatrix';
+            hdfDataSet.l1aEarthSubsatellite = '/Geolocation_Data/EarthSubSatellitePoint';
+            hdfDataSet.l1aLunarSubsatellite = '/Geolocation_Data/LunarSubSatellitePoint';
             hdfDataSet.l1bDemod = '/Demodulated_Power/DemodulatedRadiometerPower';
             hdfDataSet.l1bEarthRadA = '/Earth_Irradiance/BandA_EarthIrradiance';
             hdfDataSet.l1bEarthRadB = '/Earth_Irradiance/BandB_EarthIrradiance';

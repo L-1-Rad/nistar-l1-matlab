@@ -26,7 +26,7 @@ classdef NIDiagnostic
                 options.output_dir (1,1) string = strcat(NIConstants.dir.root, NIConstants.dir.hdf)
             end
 
-            start_jul_day = NIDateTime.getJulianDateFromCalendarDate(year, month, 0, 12);
+            start_jul_day = NIDateTime.getJulianDateFromCalendarDate(year, month, 30, 12);
             end_jul_day = NIDateTime.getJulianDateFromCalendarDate(year, month, eomday(year, month), 12);
 
             % read apid82 data
@@ -41,7 +41,7 @@ classdef NIDiagnostic
             l1a_pd_data = NIL1A.readL1APhotodiode(start_jul_day, end_jul_day);
 
             % convert into writeable format
-            w_instru_data = NIDiagnostic.convertToInstrumentData(receiver_apid82_data, l1a_pd_data);
+            % w_instru_data = NIDiagnostic.convertToInstrumentData(receiver_apid82_data, l1a_pd_data);
 
             % create HDF file
             hdf_file_name = sprintf('nist_diagnostic_data_%d%02d.h5', year, month);
@@ -49,7 +49,7 @@ classdef NIDiagnostic
             hdf_file = H5F.create(hdf_file_path, 'H5F_ACC_TRUNC', 'H5P_DEFAULT', 'H5P_DEFAULT');
 
             % write apid82 data to HDF file
-            NIDiagnostic.writeInstrumentData(hdf_file, w_instru_data);
+            % NIDiagnostic.writeInstrumentData(hdf_file, w_instru_data);
 
             fprintf('Wrote instrument data to %s\n', hdf_file_path);
 
@@ -121,6 +121,12 @@ classdef NIDiagnostic
         end
 
         function wdata = convertToInstrumentData(receiver_apid82_data, l1a_pd_data, downsample)
+
+            arguments
+                receiver_apid82_data struct
+                l1a_pd_data struct
+                downsample (1,1) {mustBePositive, mustBeInteger} = 10
+            end
 
             fprintf('Converting data to instrument data...\n');
 
@@ -234,7 +240,7 @@ classdef NIDiagnostic
             H5T.close(array_type);
         end
 
-        function convertToEphemerisData(nv_data, dscovr_ephemeris_data, ...
+        function wdata = convertToEphemerisData(nv_data, dscovr_ephemeris_data, ...
             lunar_ephemeris_data, solar_ephemeris_data, attitude_data, earth_subsatellite_data, ...
             lunar_subsatellite_data)
 
@@ -250,25 +256,36 @@ classdef NIDiagnostic
             for i = 1:total_records
                 wdata.dscTm(i) = dscovr_ephemeris_data.time(i);
                 % for NISTAR view, attitude only
-                idx = binary_search(nv_data.time, wdata.dscTm(i), tol=60);
+                idx = binary_search(nv_data.time, wdata.dscTm(i), tol=120, warn=false);
                 if idx == -1
-                    error('No attitude data found for time %f', wdata.dscTm(i));
+                    warning('No corresponding attitude data found for time %f', wdata.dscTm(i));
+                    continue;
                 end
                 wdata.nistView(i) = nv_data.view(idx);
-                wdata.dscPos(i, :) = dscovr_ephemeris_data.pos(i, :);
-                wdata.dscVel(i, :) = dscovr_ephemeris_data.vel(i, :);
-                wdata.dscAttRow1(i, :) = attitude_data.row1(idx, :);
-                wdata.dscAttRow2(i, :) = attitude_data.row2(idx, :);
-                wdata.dscAttRow3(i, :) = attitude_data.row3(idx, :);
-                wdata.dscLat(i) = earth_subsatellite_data.lat(i);
-                wdata.dscLon(i) = earth_subsatellite_data.lon(i);
-                wdata.solPos(i, :) = solar_ephemeris_data.pos(i, :);
-                wdata.lunPos(i, :) = lunar_ephemeris_data.pos(i, :);
-                wdata.lunLat(i, :) = lunar_subsatellite_data.lat(i);
-                wdata.lunLon(i, :) = lunar_subsatellite_data.lon(i);
+                wdata.dscPos(i, :) = dscovr_ephemeris_data.pos(:, i);
+                wdata.dscVel(i, :) = dscovr_ephemeris_data.vel(:, i);
+                wdata.dscAttRow1(i, :) = attitude_data.row1(:, idx);
+                wdata.dscAttRow2(i, :) = attitude_data.row2(:, idx);
+                wdata.dscAttRow3(i, :) = attitude_data.row3(:, idx);
+                try
+                    wdata.dscLat(i) = earth_subsatellite_data.lat(i);
+                    wdata.dscLon(i) = earth_subsatellite_data.lon(i);
+                    wdata.lunLat(i, :) = lunar_subsatellite_data.lat(i);
+                    wdata.lunLon(i, :) = lunar_subsatellite_data.lon(i);
+                catch ME
+                    warning(['Earth/Moon Subsatellite Point data does not have the same length: ...' ...
+                        'Earth: %d, Moon: %d\n'], length(earth_subsatellite_data.time), length(lunar_subsatellite_data.time));
+                    fprintf(ME.message);
+                    continue;
+                end
+                try
+                    wdata.solPos(i, :) = solar_ephemeris_data.pos(:, i);
+                    wdata.lunPos(i, :) = lunar_ephemeris_data.pos(:, i);
+                catch ME
+                    fprintf(ME.message);
+                    continue;
+                end              
             end
         end
-
     end
-
 end
