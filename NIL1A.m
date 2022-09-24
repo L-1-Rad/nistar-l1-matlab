@@ -544,7 +544,7 @@ classdef NIL1A
             if valid_file_count == 0
                 error('No valid L1A product found in the path %s', options.directory);
             end
-            fprintf('\nRead %d records from %d valid L1A products.\', length(receiver_apid82_data.time), valid_file_count);
+            fprintf('\nRead %d records from %d valid L1A products.\n', length(receiver_apid82_data.time), valid_file_count);
             fprintf('First record: %s\n', datestr(receiver_apid82_data.time(1)));
             fprintf('Last record: %s\n', datestr(receiver_apid82_data.time(end)));
 
