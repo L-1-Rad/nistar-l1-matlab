@@ -48,11 +48,6 @@ classdef NIDiagnostic
             hdf_file_path = fullfile(options.output_dir, hdf_file_name);
             hdf_file = H5F.create(hdf_file_path, 'H5F_ACC_TRUNC', 'H5P_DEFAULT', 'H5P_DEFAULT');
 
-            % write apid82 data to HDF file
-            NIDiagnostic.writeInstrumentData(hdf_file, w_instru_data);
-
-            fprintf('Wrote instrument data to %s\n', hdf_file_path);
-
             % read ephemeris data
             nv_data = NIL1A.readNISTARView(start_jul_day, end_jul_day);
             dscovr_ephemeris_data = NIL1A.readEphemeris(start_jul_day, end_jul_day);
@@ -67,9 +62,13 @@ classdef NIDiagnostic
                 lunar_ephemeris_data, solar_ephemeris_data, attitude_data, earth_subsatellite_data, ...
                 lunar_subsatellite_data);
 
-
             % update the status code in instrument data
-            % w_instru_data = NIDiagnostic.updateInstrumentDataStatus(w_instru_data, w_ephemeris_data);
+            w_instru_data = NIDiagnostic.updateInstrumentStatusWithNISTARView(w_instru_data, nv_data);
+
+            % write apid82 data to HDF file
+            NIDiagnostic.writeInstrumentData(hdf_file, w_instru_data);
+
+            fprintf('Wrote instrument data to %s\n', hdf_file_path);
 
             % write ephemeris data to HDF file
             NIDiagnostic.writeEphemerisData(hdf_file, w_ephemeris_data);
@@ -182,8 +181,26 @@ classdef NIDiagnostic
                 wdata.rc3PwrPtcS(i) = receiver_apid82_data.rc3_ptc(i*downsample);
                 wdata.hsPwrPtcS(i) = receiver_apid82_data.hs_ptc(i*downsample);
                 wdata.pdCur(i) = l1a_pd_data.curr(i*downsample);
-                wdata.status(i) = 0;
+                wdata.status(i) = NIDiagnostic.getInstrumentStatus(receiver_apid82_data, i*downsample);
             end
+        end
+
+        function status = getInstrumentStatus(receiver_apid82_data, idx)
+
+            status = 0;
+            if receiver_apid82_data.rc1_bit(idx) == 0 || receiver_apid82_data.autocycle(idx) == 0
+                status = status + 2^5;
+            end
+            if receiver_apid82_data.rc2_bit(idx) == 0 || receiver_apid82_data.autocycle(idx) == 0
+                status = status + 2^6;
+            end
+            if receiver_apid82_data.rc3_bit(idx) == 0 || receiver_apid82_data.autocycle(idx) == 0
+                status = status + 2^7;
+            end
+            if receiver_apid82_data.fw_pos(idx) ~= 3
+                status = status + 2^8;
+            end
+
         end
 
         function writeEphemerisData(hdf_file, wdata)
@@ -292,8 +309,27 @@ classdef NIDiagnostic
             end
         end
 
-%         function w_instru_data = updateInstrumentDataStatus(w_instru_data, w_ephemeris_data)
-% 
-%         end
+        function w_instru_data = updateInstrumentStatusWithNISTARView(w_instru_data, nv_data)
+
+            for i = 1:length(w_instru_data.dscTm)
+                idx = binary_search(nv_data.time, w_instru_data.dscTm(i), tol=120, warn=false);
+                if idx == -1
+                    warning('No corresponding ephemeris data found for time %f', w_instru_data.dscTm(i));
+                    w_instru_data.status(i) = w_instru_data.status(i) + 1;
+                else
+                    if nv_data.earthDev.mag(idx) < nv_data.earthFOV(idx) % Earth in FOV
+                        w_instru_data.status(i) = w_instru_data.status(i) + 2;
+                    elseif nv_data.earthDev.mag(idx) < nv_data.earthFOR(idx) % Earth in FOR
+                        w_instru_data.status(i) = w_instru_data.status(i) + 4;
+                    end
+
+                    if nv_data.earthDev.mag(idx) < nv_data.moonFOV(idx) % Moon in FOV
+                        w_instru_data.status(i) = w_instru_data.status(i) + 8;
+                    elseif nv_data.earthDev.mag(idx) < nv_data.moonFOR(idx) % Moon in FOR
+                        w_instru_data.status(i) = w_instru_data.status(i) + 16;
+                    end
+                end
+            end
+        end
     end
 end
