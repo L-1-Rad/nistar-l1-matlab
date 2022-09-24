@@ -72,6 +72,10 @@ classdef NIConstants
             hdfDataSet.l1aRad = '/Radiometric_Data/RadiometricPower';
             hdfDataSet.l1aPD = '/Radiometric_Data/PhotodiodeCurrent';
             hdfDataSet.l1aNV = '/Geolocation_Data/NISTARView';
+            hdfDataSet.l1aDSCOVREphemeris = '/Geolocation_Data/SpacecraftEphemeris';
+            hdfDataSet.l1aSunEphemeris = '/Geolocation_Data/SolarEphemeris';
+            hdfDataSet.l1aMoonEphemeris = '/Geolocation_Data/LunarEphemeris';
+            hdfDataSet.l1aAttitude = '/Geolocation_Data/InstrumentAttitudeMatrix';
             hdfDataSet.l1bDemod = '/Demodulated_Power/DemodulatedRadiometerPower';
             hdfDataSet.l1bEarthRadA = '/Earth_Irradiance/BandA_EarthIrradiance';
             hdfDataSet.l1bEarthRadB = '/Earth_Irradiance/BandB_EarthIrradiance';

@@ -491,9 +491,9 @@ classdef NIL1A
             %           receiver_apid82_data.fw_pos: filter wheel position (same as NIL1A.readFilterWheel)
 
             arguments
-                jul_day1 (1,1) double
-                jul_day2 (1,1) double
-                options.directory (1,1) string = strcat(NIConstants.dir.root, NIConstants.dir.hdf)
+                jul_day1 (1,1) double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day1, 2457203.5)}
+                jul_day2 (1,1) double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day2, jul_day1)} = jul_day1
+                options.directory (1,1) string = fullfile(NIConstants.dir.root, NIConstants.dir.hdf)
                 options.average (1,1) string = "none"
                 options.plotFlag (1,1) logical = false
             end
@@ -619,6 +619,271 @@ classdef NIL1A
                 stylize_figure(gcf, 6, 4);
             end
         end
-    end 
+    end
+
+    methods(Static)
+        function ephemeris = readEphemeris(jul_day1, jul_day2, object, options)
+            % readEphemeris Reads ephemeris data from the DSCOVR ephemeris dataset
+            %   ephemeris = readEphemeris(jul_day1, jul_day2, object, options)
+            %   reads ephemeris data from the DSCOVR ephemeris dataset for the
+            %   specified object: 'dscovr', 'sun', 'moon', in the J2000 coordinates
+            %   Inputs:
+            %       jul_day1: first Julian day
+            %       jul_day2: last Julian day (inclusive)
+            %       object: 'dscovr', 'sun'/'solar', 'moon'/'lunar', 
+            %           default: 'dscovr'
+            %       options: 
+            %           directory: directory of the HDF files, default is
+            %               NIConstants.dir.root/NIConstants.dir.hdf
+            %           plotFlag: plot the data or not, default is false
+            %   Outputs:
+            %       The ephemeris data is returned in a structure with the
+            %       following fields:
+            %           time: The time of the ephemeris data in DSCOVR epoch
+            %           seconds.
+            %           pos: The position 3-d vector of the object in km.
+            %           vel: The velocity 3-d vector of the object in km/s.
+            
+            arguments
+                jul_day1 double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day1, 2457203.5)}
+                jul_day2 double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day2, jul_day1)} = jul_day1
+                object string {mustBeMember(object, {'dscovr', 'sun', 'solar', 'moon', 'lunar'})} = 'dscovr'
+                options.directory string = fullfile(NIConstants.dir.root, NIConstants.dir.hdf)
+                options.plotFlag logical = false
+            end
+
+            fprintf('\n');
+            ephemeris = struct('time', [], 'pos', [], 'vel', []);
+            valid_file_count = 0;
+
+            for jul_day = jul_day1 : jul_day2
+                curr_datetime = NIDateTime.getCalendarDateFromJulianDay(jul_day);
+                date = datestr(curr_datetime + hours(12), 'YYYYmmdd');                
+                try
+                    filename = NIHDF.getHDFFilenameByDate(date, '1a', options.directory);
+                catch ME
+                    warning('No L1A HDF file found for Julian day %d in the path %s', jul_day, options.directory);
+                    fprintf('%s', ME.message);
+                    continue;
+                end
+
+                if object == "dscovr"
+                    dataset = NIConstants.hdfDataSet.l1aDSCOVREphemeris;
+                elseif object == "sun" || object == "solar"
+                    dataset = NIConstants.hdfDataSet.l1aSunEphemeris;
+                elseif object == "moon" || object == "lunar"
+                    dataset = NIConstants.hdfDataSet.l1aMoonEphemeris;
+                end
+
+                fprintf('Reading L1A HDF file %s (%s to %s)...\n', filename.no_path, datestr(curr_datetime), datestr(curr_datetime + days(1)));
+                try
+                    ephemeris_data = h5read(filename.with_path, dataset);
+                catch ME
+                    warning('No required ephemeris data is found in the HDF file %s\n', filename.no_path);
+                    fprintf('%s', ME.message);
+                    continue;
+                end
+                ephemeris.time = [ephemeris.time; ephemeris_data.DSCOVREpochTime];
+                ephemeris.pos = cat(2, ephemeris.pos, ephemeris_data.Position);
+                ephemeris.vel = cat(2, ephemeris.vel, ephemeris_data.Velocity);
+                valid_file_count = valid_file_count + 1;
+            end
+            if valid_file_count == 0
+                error('No valid L1A HDF file is found in the path %s', options.directory);
+            end
+            fprintf('\nRead %d records from %d valid files.\n', length(ephemeris.time), valid_file_count);
+            fprintf('First record: %s\n', datestr(NIDateTime.getCalendarDateFromDSCOVREpoch(ephemeris.time(1))));
+            fprintf('Last record: %s\n', datestr(NIDateTime.getCalendarDateFromDSCOVREpoch(ephemeris.time(end))));
+
+            if options.plotFlag
+                x_datetime_data = NIDateTime.getCalendarDateFromDSCOVREpoch(ephemeris.time);
+                figure;
+                subplot(2, 2, 1)
+                plot(x_datetime_data, ephemeris.pos(1, :), '.');
+                subplot(2, 2, 2)
+                plot(x_datetime_data, ephemeris.pos(2, :), '.');
+                subplot(2, 2, 3)
+                plot(x_datetime_data, ephemeris.pos(3, :), '.');
+                subplot(2, 2, 4)
+                plot(x_datetime_data, sqrt(sum(ephemeris.pos.^2, 1)), '.');
+                stylize_figure(gcf, 6, 4);
+                figure;
+                subplot(2, 2, 1)
+                plot(x_datetime_data, ephemeris.vel(1, :), '.');
+                subplot(2, 2, 2)
+                plot(x_datetime_data, ephemeris.vel(2, :), '.');
+                subplot(2, 2, 3)
+                plot(x_datetime_data, ephemeris.vel(3, :), '.');
+                subplot(2, 2, 4)
+                plot(x_datetime_data, sqrt(sum(ephemeris.vel.^2, 1)), '.');
+                stylize_figure(gcf, 6, 4);
+            end
+        end
+    end
+    
+    methods(Static)
+        function attitude = readRotationMatrix(jul_day1, jul_day2, options)
+            %READROTATIONMATRIX Read the rotation matrix from the attitude file
+            %   attitude = READROTATIONMATRIX(jul_day1, jul_day2, options) reads the
+            %   rotation matrix from the attitude file for the given julian day range.
+            %   The rotation matrix is a 3x3 matrix that rotates the spacecraft from
+            %   the J2000 frame to the spacecraft frame. The spacecraft frame is
+            %   defined as the frame where the x-axis is along the spin axis, the
+            %   y-axis is in the plane of the spin axis and the Earth, and the z-axis
+            %   is perpendicular to the x and y axes and points towards the Earth.
+            %   The J2000 frame is defined as the frame where the x-axis is along
+            %   the vernal equinox, the y-axis is along the celestial equator, and
+            %   the z-axis is perpendicular to the x and y axes and points towards
+            %   the north celestial pole.
+            %
+            %   Inputs:
+            %    jul_day1: first Julian day
+            %    jul_day2: last Julian day (inclusive)
+            %    options:
+            %       directory: directory of the HDF files, default is
+            %           NIConstants.dir.root/NIConstants.dir.hdf
+            %   Outputs:
+            %       ephemeris_data: structure containing the ephemeris data with
+            %           fields:
+            %           dscTm: time in DSCOVR epoch
+            %           nistView: NISTAR viewing object encoder
+            %           dscPos: DSCOVR position in J2000 frame
+            %           dscVel: DSCOVR velocity in J2000 frame
+            %           dscAttRow1: DSCOVR attitude the Euler form: row 1
+            %           dscAttRow2: DSCOVR attitude the Euler form: row 2
+            %           dscAttRow3: DSCOVR attitude the Euler form: row 3
+            %           dscLat: DSCOVR latitude of the subsatellite point on the
+            %               Earth
+            %           dscLon: DSCOVR longitude of the subsatellite point on the
+            %               Earth
+            %           solPos: Sun position in J2000 frame
+            %           lunPos: Moon position in J2000 frame
+            %           lunLat: DSCOVR latitude of the subsatellite point on the
+            %               Moon
+            %           lunLon: DSCOVR longitude of the subsatellite point on the
+            %               Moon
+
+            arguments
+                jul_day1 double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day1, 2457203.5)}
+                jul_day2 double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day2, jul_day1)} = jul_day1
+                options.directory = fullfile(NIConstants.dir.root, NIConstants.dir.hdf)
+            end
+
+            fprintf('\n');
+            attitude = struct('time', [], 'row1', [], 'row2', [], 'row3', []);
+
+            valid_file_count = 0;
+            for jul_day = jul_day1:jul_day2
+                curr_datetime = NIDateTime.getCalendarDateFromJulianDay(jul_day);
+                date = datestr(curr_datetime + hours(12), 'YYYYmmdd');                
+                try
+                    filename = NIHDF.getHDFFilenameByDate(date, '1a', options.directory);
+                catch ME
+                    warning('No L1A HDF file found for Julian day %d in the path %s', jul_day, options.directory);
+                    fprintf('%s', ME.message);
+                    continue;
+                end
+                fprintf('Reading L1A HDF file %s (%s to %s)...\n', filename.no_path, datestr(curr_datetime), datestr(curr_datetime + days(1)));
+                try
+                    attitude_data = h5read(filename.with_path, NIConstants.hdfDataSet.l1aAttitude);
+                catch ME
+                    warning('No/Unable to read L1A instrument attitude data found in the HDF file %s\n', filename.no_path);
+                    fprintf('%s', ME.message);
+                    continue;
+                end
+                valid_file_count = valid_file_count + 1;
+                attitude.time = [attitude.time; attitude_data.DSCOVREpochTime];
+                attitude.row1 = cat(2, attitude.row1, attitude_data.AttitudeMatrixRow1);
+                attitude.row2 = cat(2, attitude.row2, attitude_data.AttitudeMatrixRow2);
+                attitude.row3 = cat(2, attitude.row3, attitude_data.AttitudeMatrixRow3);
+            end
+            if valid_file_count == 0
+                error('No valid L1A HDF file found for the given Julian day range');
+            end
+            fprintf('\nRead % records from %d valid L1A HDF files\n', length(attitude.time), valid_file_count);
+            fprintf('First record: %s\n', datestr(NIDateTime.getCalendarDateFromDSCOVREpoch(attitude.time(1))));
+            fprintf('Last record: %s\n', datestr(NIDateTime.getCalendarDateFromDSCOVREpoch(attitude.time(end))));
+        end
+    end
+
+    methods(Static)
+        function subsatellite = readSubsatellitePoint(jul_day1, jul_day2, object, options)
+            %READSUBSATELLITEPOINT Read the subsatellite point from the attitude file
+            %   subsatellite = READSUBSATELLITEPOINT(jul_day1, jul_day2, object, options)
+            %   reads the subsatellite point from the attitude file for the given
+            %   julian day range. The subsatellite point is the point on the Earth
+            %   or the Moon that is directly below the spacecraft.
+            %
+            %   Inputs:
+            %    jul_day1: first Julian day
+            %    jul_day2: last Julian day (inclusive)
+            %    object: object to read the subsatellite point for, either 'earth'
+            %        or 'moon'/'lunar', default is 'earth'
+            %    options:
+            %       directory: directory of the HDF files, default is   
+            %           NIConstants.dir.root/NIConstants.dir.hdf
+            %   Outputs:
+            %       subsatellite: structure containing the subsatellite point data
+            %           with fields:
+            %           time: time in DSCOVR epoch
+            %           lat: latitude of the subsatellite point
+            %           lon: longitude of the subsatellite point
+
+            arguments
+                jul_day1 double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day1, 2457203.5)}
+                jul_day2 double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day2, jul_day1)} = jul_day1
+                object char {mustBeMember(object, {'earth', 'moon', 'lunar'})} = 'earth'
+                options.directory = fullfile(NIConstants.dir.root, NIConstants.dir.hdf)
+            end
+
+            fprintf('\n');
+            subsatellite = struct('time', [], 'lat', [], 'lon', []);
+            valid_file_count = 0;
+
+            for jul_day = jul_day1 : jul_day2
+                curr_datetime = NIDateTime.getCalendarDateFromJulianDay(jul_day);
+                date = datestr(curr_datetime + hours(12), 'YYYYmmdd');                
+                try
+                    filename = NIHDF.getHDFFilenameByDate(date, '1a', options.directory);
+                catch ME
+                    warning('No L1A HDF file found for Julian day %d in the path %s', jul_day, options.directory);
+                    fprintf('%s', ME.message);
+                    continue;
+                end
+
+                if object == "earth"
+                    dataset = NIConstants.hdfDataSet.l1aEarthSubsatellite;
+                else
+                    dataset = NIConstants.hdfDataSet.l1aMoonSubsatellite;
+                end
+
+                fprintf('Reading L1A HDF file %s (%s to %s)...\n', filename.no_path, datestr(curr_datetime), datestr(curr_datetime + days(1)));
+                try
+                    subsatellite_data = h5read(filename.with_path, dataset);
+                catch ME
+                    warning('No required ephemeris data is found in the HDF file %s\n', filename.no_path);
+                    fprintf('%s', ME.message);
+                    continue;
+                end
+                valid_file_count = valid_file_count + 1;
+                subsatellite.time = [subsatellite.time; subsatellite_data.DSCOVREpochTime];
+                subsatellite.lat = [subsatellite.lat; subsatellite_data.Latitude];
+                subsatellite.lon = [subsatellite.lon; subsatellite_data.Longitude];
+            end
+            if valid_file_count == 0
+                error('No valid L1A HDF file found for the given Julian day range');
+            end
+            fprintf('\nRead %d records from %d valid L1A HDF files\n', length(subsatellite.time), valid_file_count);
+            fprintf('First record: %s\n', datestr(NIDateTime.getCalendarDateFromDSCOVREpoch(subsatellite.time(1))));
+            fprintf('Last record: %s\n', datestr(NIDateTime.getCalendarDateFromDSCOVREpoch(subsatellite.time(end))));
+            if options.plotFlag
+                figure;
+                plot(subsatellite.lon, subsatellite.lat, '.');
+                title(sprintf('Subsatellite point of DSCOVR on %s', object));
+                xlabel('Longitude');
+                ylabel('Latitude');
+            end
+        end
+    end
 end
 
