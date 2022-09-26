@@ -37,7 +37,7 @@ arguments
     step (1,1) double
     options.data_rate (1,1) double = 1
     options.first_index (1,1) double {mustBePositive, mustBeInteger} = 1
-    options.last_index (1,1) double {mustBePositive, mustBeInteger} = []
+    options.last_index double {mustBePositive, mustBeInteger, mustBeScalarOrEmpty} = []
     options.method (1,1) string = "mean"
     options.percentage (1,1) double {mustBeGreaterThanOrEqual(options.percentage, 0) ...
         mustBeLessThanOrEqual(options.percentage, 100)} = 70
@@ -106,7 +106,7 @@ for i = 2:num_averages
 
     naive_start_index = start_index + round(step / options.data_rate);
     naive_end_index = end_index + round(step / options.data_rate);
-    if time(naive_start_index) - options.data_rate/2 > average.time(i) - window/2 || time(naive_end_index) - options.data_rate/2 > average.time(i) + window/2
+    if naive_end_index > length(time) || time(naive_start_index) - options.data_rate/2 > average.time(i) - window/2 || time(naive_end_index) - options.data_rate/2 > average.time(i) + window/2
         % binary search
         start_index = binary_search_right(time, average.time(i) - window/2, warn=false);
         end_index = binary_search_right(time, average.time(i) + window/2, warn=false) - 1; % -1 because it is MATLAB

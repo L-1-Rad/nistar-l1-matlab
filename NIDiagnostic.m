@@ -17,13 +17,15 @@ classdef NIDiagnostic
     end
 
     methods(Static)
-        function generateDiagnosticProduct(year, month, options)
+        function [w_instru_data, w_ephemeris_data] = generateDiagnosticProduct(year, month, options)
 
             arguments
                 year (1,1) double {mustBeInteger, mustBePositive}
                 month (1,1) double {mustBeInteger, mustBePositive}
-                options.input_dir (1,1) string = strcat(NIConstants.dir.root, NIConstants.dir.hdf)
-                options.output_dir (1,1) string = strcat(NIConstants.dir.root, NIConstants.dir.hdf)
+                options.input_dir (1,1) string = fullfile(NIConstants.dir.root, NIConstants.dir.hdf)
+                options.output_dir (1,1) string = fullfile(NIConstants.dir.root, NIConstants.dir.hdf)
+                options.anomalous_file (1,1) string {mustBeFile} = fullfile(NIConstants.dir.root, ...
+                        NIConstants.dir.cal, 'BadData.txt')
             end
 
             start_jul_day = NIDateTime.getJulianDateFromCalendarDate(year, month, 0, 12);
@@ -33,7 +35,7 @@ classdef NIDiagnostic
             receiver_apid82_data = NIL1A.readReceiverAppID82(start_jul_day, end_jul_day);
 
             if isempty(receiver_apid82_data)
-                fprintf('No data for %d-%d found in the database for APID 82 (Receiver Data)\r ', year, month);
+                fprintf('No data for %d-%d found in the database for APID 82 (Receiver Data)\n ', year, month);
                 return;
             end
 
@@ -64,6 +66,7 @@ classdef NIDiagnostic
 
             % update the status code in instrument data
             w_instru_data = NIDiagnostic.updateInstrumentStatusWithNISTARView(w_instru_data, nv_data);
+            w_instru_data = NIDiagnostic.updateInstrumentStatusWithBadDataTable(w_instru_data, options.anomalous_file);
 
             % write apid82 data to HDF file
             NIDiagnostic.writeInstrumentData(hdf_file, w_instru_data);
@@ -123,6 +126,17 @@ classdef NIDiagnostic
 
         end
 
+        function averaged = run4FoldRunningAverage(time, data, window, step)
+            temp = struct('time', [], 'data', []);
+            temp.time = time;
+            temp.data = data;
+            for i = 1:4
+                fprintf('run4FoldRunningAverage: round %d...\n', i);
+                temp = running_ave(temp.time, temp.data, window, step);
+            end
+            averaged = temp;
+        end
+
         function wdata = convertToInstrumentData(receiver_apid82_data, l1a_pd_data, downsample)
 
             arguments
@@ -151,10 +165,10 @@ classdef NIDiagnostic
             average_window = NIConstants.receivers.shutter_period;
             step = 1;
             tic
-            averaged_rc1_adc = running_ave(receiver_apid82_data.time, receiver_apid82_data.rc1_adc, average_window, step);
-            averaged_rc2_adc = running_ave(receiver_apid82_data.time, receiver_apid82_data.rc2_adc, average_window, step);
-            averaged_rc3_adc = running_ave(receiver_apid82_data.time, receiver_apid82_data.rc3_adc, average_window, step);
-            averaged_hs_dac = running_ave(receiver_apid82_data.time, receiver_apid82_data.hs_dac, average_window, step);
+            averaged_rc1_adc = NIDiagnostic.run4FoldRunningAverage(receiver_apid82_data.time, receiver_apid82_data.rc1_adc, average_window, step);
+            averaged_rc2_adc = NIDiagnostic.run4FoldRunningAverage(receiver_apid82_data.time, receiver_apid82_data.rc2_adc, average_window, step);
+            averaged_rc3_adc = NIDiagnostic.run4FoldRunningAverage(receiver_apid82_data.time, receiver_apid82_data.rc3_adc, average_window, step);
+            averaged_hs_dac = NIDiagnostic.run4FoldRunningAverage(receiver_apid82_data.time, receiver_apid82_data.hs_dac, average_window, step);
             toc
             fprintf('Demodulating receiver power data...\n');
             demod_rc1_adc = demod(receiver_apid82_data.rc1_adc, receiver_apid82_data.rc1_shutter);
@@ -211,7 +225,7 @@ classdef NIDiagnostic
             sizes_of_fields = zeros(1, number_of_fields);
             double_type = H5T.copy('H5T_NATIVE_DOUBLE');
                 % create array type
-            array_type = H5T.array_create(double_type, fliplr(3));
+            array_type = H5T.array_create(double_type, fliplr([3, 1]));
             for i = 1:number_of_fields
                 if (i >= 3 && i <= 7) || (i >= 10 && i <= 11)
                     sizes_of_fields(i) = H5T.get_size(array_type);
@@ -277,13 +291,15 @@ classdef NIDiagnostic
             for i = 1:total_records
                 wdata.dscTm(i) = dscovr_ephemeris_data.time(i);
                 % for NISTAR view, attitude only
-                idx = binary_search(nv_data.time, wdata.dscTm(i), tol=120, warn=false);
+                idx = binary_search(nv_data.time, wdata.dscTm(i), tol=300, warn=false);
                 if idx == -1
                     warning('No corresponding attitude data found for time %f', wdata.dscTm(i));
                     continue;
                 end
                 wdata.nistView(i) = nv_data.view(idx);
-                wdata.dscPos(i, :) = dscovr_ephemeris_data.pos(:, i);
+                for j = 1:3
+                    wdata.dscPos(i, j) = dscovr_ephemeris_data.pos(j, i);
+                end
                 wdata.dscVel(i, :) = dscovr_ephemeris_data.vel(:, i);
                 wdata.dscAttRow1(i, :) = attitude_data.row1(:, idx);
                 wdata.dscAttRow2(i, :) = attitude_data.row2(:, idx);
@@ -312,7 +328,7 @@ classdef NIDiagnostic
         function w_instru_data = updateInstrumentStatusWithNISTARView(w_instru_data, nv_data)
 
             for i = 1:length(w_instru_data.dscTm)
-                idx = binary_search(nv_data.time, w_instru_data.dscTm(i), tol=120, warn=false);
+                idx = binary_search(nv_data.time, w_instru_data.dscTm(i), tol=300, warn=false);
                 if idx == -1
                     warning('No corresponding ephemeris data found for time %f', w_instru_data.dscTm(i));
                     w_instru_data.status(i) = w_instru_data.status(i) + 1;
@@ -323,13 +339,37 @@ classdef NIDiagnostic
                         w_instru_data.status(i) = w_instru_data.status(i) + 4;
                     end
 
-                    if nv_data.earthDev.mag(idx) < nv_data.moonFOV(idx) % Moon in FOV
+                    if nv_data.moonDev.mag(idx) < nv_data.moonFOV(idx) % Moon in FOV
                         w_instru_data.status(i) = w_instru_data.status(i) + 8;
-                    elseif nv_data.earthDev.mag(idx) < nv_data.moonFOR(idx) % Moon in FOR
+                    elseif nv_data.moonDev.mag(idx) < nv_data.moonFOR(idx) % Moon in FOR
                         w_instru_data.status(i) = w_instru_data.status(i) + 16;
                     end
                 end
             end
         end
+
+        function w_instru_data = updateInstrumentStatusWithBadDataTable(w_instru_data, anomalous_file)
+
+            table = importdata(anomalous_file, ',', 4);
+            bad_data = table.data;
+            for i = 1:length(w_instru_data.dscTm)
+                curr_jul_day = floor(NIDateTime.getJulianDayFromDSCOVREpoch(w_instru_data.dscTm(i)));
+                idxes = find(bad_data(:, 1) == curr_jul_day);
+                if ~isempty(idxes)
+                    for j = 1:length(idxes)
+                        start_time = NIDateTime.getDSCOVREpochFromJulianDay(curr_jul_day + bad_data(idxes(j), 2)/24);
+                        end_time = NIDateTime.getDSCOVREpochFromJulianDay(curr_jul_day + bad_data(idxes(j), 3)/24);
+                        bad_code = dec2bin(bad_data(idxes(j), 4), 3);
+                        bad_rc = [str2double(bad_code(1)), str2double(bad_code(2)), str2double(bad_code(3))];
+                        if w_instru_data.dscTm(i) > start_time && w_instru_data.dscTm(i) < end_time                            
+                            for k = 1:3
+                                w_instru_data.status(i) = w_instru_data.status(i) + bad_rc(k) * 2^(8+k);
+                            end
+                        end
+                    end
+                end
+            end
+        end
+
     end
 end

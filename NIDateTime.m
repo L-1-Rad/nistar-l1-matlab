@@ -65,6 +65,13 @@ classdef NIDateTime
             end
             dscovr_epochtime = seconds(datetime(year, month, day, hour, minute, second) - datetime([1968, 5, 24]));
         end
+
+        function dscovr_epochtime = getDSCOVREpochFromJulianDay(jul_day)
+            calendar_datetime = datetime([1858, 11, 17]) + days(jul_day - 2400000.5);
+            dscovr_epochtime = NIDateTime.getDSCOVREpochFromCalendarDate(year(calendar_datetime), ...
+                month(calendar_datetime), day(calendar_datetime), hour(calendar_datetime), ...
+                minute(calendar_datetime), second(calendar_datetime));
+        end
     end
 
     methods(Static)
@@ -167,6 +174,11 @@ classdef NIDateTime
             end
             julian_date = days(datetime(year, month, day, hour, minute, second) - datetime([1858, 11, 17])) + 2400000.5;
         end
+
+        function jul_day = getJulianDayFromDSCOVREpoch(dscovr_epoch)
+            jul_day = days(datetime([1968, 5, 24]) + seconds(dscovr_epoch) - datetime([1858, 11, 17]) + 2400000.5);
+        end
+
     end
 
 end

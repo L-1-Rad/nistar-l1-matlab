@@ -32,6 +32,9 @@ classdef NIHDF
             
             filelist = [];
             for i = datenum(start_date, 'yyyymmdd'):datenum(end_date, 'yyyymmdd')
+                if i >= 737604 && i <= 737852   % extended safe hold
+                    continue;
+                end
                 filename = NIHDF.getHDFFilenameByDate(datestr(i, 'yyyymmdd'), processing_level, directory);
                 if ~isempty(filename.no_path)
                     filelist = [filelist; filename];
@@ -66,6 +69,7 @@ classdef NIHDF
             end
 
             date_range = datenum(end_date, 'yyyymmdd') - datenum(start_date, 'yyyymmdd') + 1;
+            date_range = date_range - 249;
             filelist = NIHDF.getHDFFilenamesByDateRange(start_date, end_date, processing_level, directory);
             if processing_level == '1a'
                 total_count = struct('apid82', 0, 'rad', 0, 'missing', 0);
