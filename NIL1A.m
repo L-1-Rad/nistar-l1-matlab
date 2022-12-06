@@ -195,14 +195,21 @@ classdef NIL1A
 				hold on
 				plot(x_datetime_data, l1aNV.earthFOV, 'k--')
 				plot(x_datetime_data, l1aNV.earthFOR, 'k--')
+                title('Earth Deviation Angle')
+                ylabel('radians')
+                legend('Earth deviation angle', 'field of view', 'field of regard')
                 subplot(3, 1, 2)
 				plot(x_datetime_data, l1aNV.moonDev.mag, '.', 'Color', '#ABB2B9')
 				hold on
 				plot(x_datetime_data, l1aNV.moonFOV, 'k--')
 				plot(x_datetime_data, l1aNV.moonFOR, 'k--')
+                title('Moon Deviation Angle')
+                ylabel('radians')
+                legend('Moon deviation angle', 'field of view', 'field of regard')
 				subplot(3, 1, 3)
                 plot(x_datetime_data, l1aNV.view, 'r.')
                 grid on
+                title('NISTAR View Encoder')
                 stylize_figure(gcf, 6, 8);
             end
         end
@@ -696,26 +703,37 @@ classdef NIL1A
             fprintf('Last record: %s\n', datestr(NIDateTime.getCalendarDateFromDSCOVREpoch(ephemeris.time(end))));
 
             if options.plotFlag
+                title_str = sprintf('%s ephemeris', object);
                 x_datetime_data = NIDateTime.getCalendarDateFromDSCOVREpoch(ephemeris.time);
                 figure;
                 subplot(2, 2, 1)
                 plot(x_datetime_data, ephemeris.pos(1, :), '.');
+                title('Position X (km)')
                 subplot(2, 2, 2)
                 plot(x_datetime_data, ephemeris.pos(2, :), '.');
+                title('Position Y (km)')
                 subplot(2, 2, 3)
                 plot(x_datetime_data, ephemeris.pos(3, :), '.');
+                title('Position Z (km)')
                 subplot(2, 2, 4)
                 plot(x_datetime_data, sqrt(sum(ephemeris.pos.^2, 1)), '.');
+                title('Position Magnitude (km)')
+                sgtitle(title_str)
                 stylize_figure(gcf, 6, 4);
                 figure;
                 subplot(2, 2, 1)
                 plot(x_datetime_data, ephemeris.vel(1, :), '.');
+                title('Velocity X (km/s)')
                 subplot(2, 2, 2)
                 plot(x_datetime_data, ephemeris.vel(2, :), '.');
+                title('Velocity Y (km/s)')
                 subplot(2, 2, 3)
                 plot(x_datetime_data, ephemeris.vel(3, :), '.');
+                title('Velocity Z (km/s)')
                 subplot(2, 2, 4)
                 plot(x_datetime_data, sqrt(sum(ephemeris.vel.^2, 1)), '.');
+                title('Velocity Magnitude (km/s)')
+                sgtitle(title_str)
                 stylize_figure(gcf, 6, 4);
             end
         end
@@ -881,10 +899,9 @@ classdef NIL1A
                 figure;
                 plot(subsatellite.lon, subsatellite.lat, '.');
                 title(sprintf('Subsatellite point of DSCOVR on %s', object));
-                xlabel('Longitude');
-                ylabel('Latitude');
+                xlabel('Longitude (deg)');
+                ylabel('Latitude (deg)');
             end
         end
     end
 end
-

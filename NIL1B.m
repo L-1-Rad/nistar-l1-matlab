@@ -1,16 +1,22 @@
 classdef NIL1B
 
     methods(Static)
-        function l1bDemod = readL1BDemodPower(jul_day1, jul_day2, options)
+        function l1bDemod = readL1BDemodPower(options)
             %readL1BDemodPower Read NIST L1B demodulated radiometer data
-            %   l1bDemod = readL1BDemodPower(jul_day1, jul_day2, options)
+            %   l1bDemod = readL1BDemodPower(options)
             %   Inputs:
-            %       jul_day1: first Julian day
-            %       jul_day2: last Julian day (inclusive)
-            %       options: 
+            %       options:
+            %           jd1: first Julian day
+            %           jd2: last Julian day (inclusive)
+            %           cd1: first calendar day, mutually exclusive with
+            % jd1 and jd2
+            %           cd2: last calendar day (inclusive), mutually 
+            % exclusive with jd1 and jd2
             %           directory: directory of the HDF files, default is
             %               NIConstants.dir.root/NIConstants.dir.hdf
             %           plotFlag: plot the data or not, default is false
+            %           version: version of the product, only version 3 and
+            % above are supported, current default is 4
             %   Outputs:
             %       l1bDemod: a structure containing the following fields
             %           time: DSCOVR epoch time
@@ -29,16 +35,20 @@ classdef NIL1B
             %       l1bDemod = readL1BDemodPower(2458000, 2458001, plotFlag=true);
 
             arguments
-                jul_day1 double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day1, 2457203.5)}
-                jul_day2 double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day2, jul_day1)} = jul_day1
+                options.jd1 double {mustBeInteger, mustBeGreaterThanOrEqual(options.jd1, 2457203.5)} = []
+                options.jd2 double {mustBeInteger, mustBeGreaterThanOrEqual(options.jd2, 2457203.5)} = []
+                options.cd1 double {mustBeInteger, mustBeGreaterThanOrEqual(options.cd1, 20170101)} = []
+                options.cd2 double {mustBeInteger, mustBeGreaterThanOrEqual(options.cd2, 20170101)} = []
                 options.directory string {mustBeFolder} = strcat(NIConstants.dir.root, NIConstants.dir.hdf)
                 options.plotFlag logical = false
+                options.version double {mustBeInteger, mustBeGreaterThanOrEqual(options.version, 3), mustBeLessThanOrEqual(options.version, 4)} = 4
             end
 
             fprintf('\n');
             l1bDemod = struct('time', [], 'demod_rc1', [], 'demod_rc2', [], 'demod_rc3', [], ...
                 'demod_rc1_im', [], 'demod_rc2_im', [], 'demod_rc3_im', [], 'fw', [], ...
                 'shutter_rc1', [], 'shutter_rc2', [], 'shutter_rc3', []);
+            [jul_day1, jul_day2] = verify_input_dates(options.jd1, options.jd2, options.cd1, options.cd2);
             
             valid_file_count = 0;
 
@@ -101,16 +111,24 @@ classdef NIL1B
     end
 
     methods(Static)
-        function l1bEarthRad = readL1BIrradiance(jul_day1, jul_day2, options)
+        function l1bEarthRad = readL1BIrradiance(options)
             %readL1BIrradiance Read L1B Earth signal data from HDF files
             %
-            %   l1bEarthRad = readL1BIrradiance(jul_day1, jul_day2, options)
+            %   l1bEarthRad = readL1BIrradiance(options)
             %
-            %   Input:
-            %       jul_day1: first Julian day to read
-            %       jul_day2: last Julian day to read
-            %       options.directory: directory of HDF files
-            %       options.plotFlag: plot the data
+            %   Inputs:
+            %       options:
+            %           jd1: first Julian day
+            %           jd2: last Julian day (inclusive)
+            %           cd1: first calendar day, mutually exclusive with
+            % jd1 and jd2
+            %           cd2: last calendar day (inclusive), mutually 
+            % exclusive with jd1 and jd2
+            %           directory: directory of the HDF files, default is
+            %               NIConstants.dir.root/NIConstants.dir.hdf
+            %           plotFlag: plot the data or not, default is false
+            %           version: version of the product, only version 3 and
+            % above are supported, current default is 4
             %
             %   Output:
             %       l1bEarthRad: structure containing the following fields
@@ -132,18 +150,31 @@ classdef NIL1B
             %       l1bEarthRad = NIL1B.readL1BIrradiance(2458000, 2458001, plotFlag=true);
 
             arguments
-                jul_day1 double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day1, 2457203.5)}
-                jul_day2 double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day2, jul_day1)} = jul_day1
+                options.jd1 double {mustBeInteger, mustBeGreaterThanOrEqual(options.jd1, 2457203.5)} = []
+                options.jd2 double {mustBeInteger, mustBeGreaterThanOrEqual(options.jd2, 2457203.5)} = []
+                options.cd1 double {mustBeInteger, mustBeGreaterThanOrEqual(options.cd1, 20170101)} = []
+                options.cd2 double {mustBeInteger, mustBeGreaterThanOrEqual(options.cd2, 20170101)} = []
                 options.directory string {mustBeFolder} = strcat(NIConstants.dir.root, NIConstants.dir.hdf)
                 options.plotFlag logical = false
+                options.version double {mustBeInteger, mustBeGreaterThanOrEqual(options.version, 3), mustBeLessThanOrEqual(options.version, 4)} = 4
             end
 
             fprintf('\n');
             l1bEarthRad = struct('time_c', [], 'time_a', [], 'time_b', [], 'irradiance_c', [], 'irradiance_a', [], ...
                 'irradiance_b', [], 'radiance_c', [], 'radiance_a', [], 'radiance_b', [], 'radiance_b_corr', [], ...
-                'radiance_b_corr_unc', [], 'is_interp_b', []);
-
+                'radiance_b_corr_unc', [], 'is_interp_c', [], 'is_interp_a', [], 'is_interp_b', []);
+            [jul_day1, jul_day2] = verify_input_dates(options.jd1, options.jd2, options.cd1, options.cd2);
             valid_file_count = 0;
+
+            if options.version >= 4
+                irridiance_fieldname = 'Irradiance';
+                radiance_fieldname = 'Radiance';
+                interp_encoder_fieldname = 'IsInterpolatedData';
+            else
+                irridiance_fieldname = 'EarthIrradiance';
+                radiance_fieldname = 'EarthRadiance';
+                interp_encoder_fieldname = 'isInterpolated';
+            end
 
             for jul_day = jul_day1 : jul_day2
                 curr_datetime = NIDateTime.getCalendarDateFromJulianDay(jul_day);
@@ -158,27 +189,29 @@ classdef NIL1B
                 try
                     l1bEarthRad_data = h5read(filename.with_path, NIConstants.hdfDataSet.l1bEarthRadA);
                     l1bEarthRad.time_a = [l1bEarthRad.time_a; l1bEarthRad_data.DSCOVREpochTime];
-                    l1bEarthRad.irradiance_a = [l1bEarthRad.irradiance_a; l1bEarthRad_data.Irradiance];
-                    l1bEarthRad.radiance_a = [l1bEarthRad.radiance_a; l1bEarthRad_data.Radiance];
+                    l1bEarthRad.irradiance_a = [l1bEarthRad.irradiance_a; l1bEarthRad_data.(irridiance_fieldname)];
+                    l1bEarthRad.radiance_a = [l1bEarthRad.radiance_a; l1bEarthRad_data.(radiance_fieldname)];
+                    l1bEarthRad.is_interp_a = [l1bEarthRad.is_interp_a; l1bEarthRad_data.(interp_encoder_fieldname)];
                 catch
                     warning('No/Unable to read L1B Band A Earth irradiance data found in the HDF file %s\n', filename.no_path);
                 end
                 try
                     l1bEarthRad_data = h5read(filename.with_path, NIConstants.hdfDataSet.l1bEarthRadB);
                     l1bEarthRad.time_b = [l1bEarthRad.time_b; l1bEarthRad_data.DSCOVREpochTime];
-                    l1bEarthRad.irradiance_b = [l1bEarthRad.irradiance_b; l1bEarthRad_data.Irradiance];
-                    l1bEarthRad.radiance_b = [l1bEarthRad.radiance_b; l1bEarthRad_data.Radiance];
+                    l1bEarthRad.irradiance_b = [l1bEarthRad.irradiance_b; l1bEarthRad_data.(irridiance_fieldname)];
+                    l1bEarthRad.radiance_b = [l1bEarthRad.radiance_b; l1bEarthRad_data.(radiance_fieldname)];
                     l1bEarthRad.radiance_b_corr = [l1bEarthRad.radiance_b_corr; l1bEarthRad_data.LunarCorrection];
                     l1bEarthRad.radiance_b_corr_unc = [l1bEarthRad.radiance_b_corr_unc; l1bEarthRad_data.LunarCorrectionUncertainty];
-                    l1bEarthRad.is_interp_b = [l1bEarthRad.is_interp_b; l1bEarthRad_data.IsInterpolatedData];
+                    l1bEarthRad.is_interp_b = [l1bEarthRad.is_interp_b; l1bEarthRad_data.(interp_encoder_fieldname)];
                 catch
                     warning('No/Unable to read L1B Band B Earth irradiance data found in the HDF file %s\n', filename.no_path);
                 end
                 try
                     l1bEarthRad_data = h5read(filename.with_path, NIConstants.hdfDataSet.l1bEarthRadC);
                     l1bEarthRad.time_c = [l1bEarthRad.time_c; l1bEarthRad_data.DSCOVREpochTime];
-                    l1bEarthRad.irradiance_c = [l1bEarthRad.irradiance_c; l1bEarthRad_data.Irradiance];
-                    l1bEarthRad.radiance_c = [l1bEarthRad.radiance_c; l1bEarthRad_data.Radiance];
+                    l1bEarthRad.irradiance_c = [l1bEarthRad.irradiance_c; l1bEarthRad_data.(irridiance_fieldname)];
+                    l1bEarthRad.radiance_c = [l1bEarthRad.radiance_c; l1bEarthRad_data.(radiance_fieldname)];
+                    l1bEarthRad.is_interp_c = [l1bEarthRad.is_interp_c; l1bEarthRad_data.(interp_encoder_fieldname)];
                 catch
                     warning('No/Unable to read L1B Band C Earth irradiance data found in the HDF file %s\n', filename.no_path);
                 end
@@ -210,6 +243,7 @@ classdef NIL1B
                 plot(x_datetime_data_b, l1bEarthRad.irradiance_b);
                 plot(x_datetime_data_c, l1bEarthRad.irradiance_c);
                 title('Irradiance');
+                ylabel('mW/m^2');
                 legend('Band A', 'Band B', 'Band C');
                 subplot(3, 1, 2);
                 plot(x_datetime_data_a, l1bEarthRad.radiance_a);
@@ -217,12 +251,14 @@ classdef NIL1B
                 plot(x_datetime_data_b, l1bEarthRad.radiance_b);
                 plot(x_datetime_data_c, l1bEarthRad.radiance_c);
                 title('Radiance');
+                ylabel('W/m^2/sr');
                 legend('Band A', 'Band B', 'Band C');
                 subplot(3, 1, 3);
                 plot(x_datetime_data_b, l1bEarthRad.radiance_b_corr);
                 hold on;
                 plot(x_datetime_data_b, l1bEarthRad.radiance_b_corr_unc);
                 title('Shortwave Radiance Correction');
+                ylabel('W/m^2/sr');
                 legend('Lunar Correction', 'Lunar Correction Uncertainty');
                 stylize_figure(gcf, 6, 8);
             end
@@ -230,14 +266,21 @@ classdef NIL1B
     end
 
     methods(Static)
-        function l1bEarthPD = readL1BEarthPDCurrent(jul_day1, jul_day2, options)
+        function l1bEarthPD = readL1BEarthPDCurrent(options)
             %   Read L1B Earth PD data for the given Julian day range
             %   Inputs:
-            %       jul_day1: start Julian day
-            %       jul_day2: end Julian day
-            %       options: options for reading L1B data
-            %           directory: directory where L1B data is stored
-            %           plotFlag: flag to plot L1B data
+            %       options:
+            %           jd1: first Julian day
+            %           jd2: last Julian day (inclusive)
+            %           cd1: first calendar day, mutually exclusive with
+            % jd1 and jd2
+            %           cd2: last calendar day (inclusive), mutually 
+            % exclusive with jd1 and jd2
+            %           directory: directory of the HDF files, default is
+            %               NIConstants.dir.root/NIConstants.dir.hdf
+            %           plotFlag: plot the data or not, default is false
+            %           version: version of the product, only version 3 and
+            % above are supported, current default is 4
             %   Outputs:
             %       l1bEarthPD: L1B Earth PD data
             %           time: DSCOVR epoch time
@@ -248,14 +291,28 @@ classdef NIL1B
             %       l1bEarthPD = NIL1B.readL1BEarthPDCurrent(2458000, 2458001, plotFlag=true);
 
             arguments
-                jul_day1 (1, 1) double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day1, 2457203.5)}
-                jul_day2 (1, 1) double {mustBeInteger, mustBeGreaterThanOrEqual(jul_day2, jul_day1)} = jul_day1
+                options.jd1 double {mustBeInteger, mustBeGreaterThanOrEqual(options.jd1, 2457203.5)} = []
+                options.jd2 double {mustBeInteger, mustBeGreaterThanOrEqual(options.jd2, 2457203.5)} = []
+                options.cd1 double {mustBeInteger, mustBeGreaterThanOrEqual(options.cd1, 20170101)} = []
+                options.cd2 double {mustBeInteger, mustBeGreaterThanOrEqual(options.cd2, 20170101)} = []
                 options.directory string {mustBeFolder} = strcat(NIConstants.dir.root, NIConstants.dir.hdf)
                 options.plotFlag logical = false
+                options.version double {mustBeInteger, mustBeGreaterThanOrEqual(options.version, 3), mustBeLessThanOrEqual(options.version, 4)} = 4
             end
             fprintf('\n');
-            l1bEarthPD = struct('time', [], 'curr', [], 'curr_norm', []);
+            l1bEarthPD = struct('time', [], 'curr', [], 'curr_norm', [], 'is_interp', []);
+            [jul_day1, jul_day2] = verify_input_dates(options.jd1, options.jd2, options.cd1, options.cd2);
             valid_file_count = 0;
+
+            if options.version >= 4
+                pd_curr_datasetname = NIConstants.hdfDataSet.l1bEarthPD;
+                pd_curr_fieldname = 'PhotodiodeCurrent';
+                pd_curr_norm_fieldname = 'PhotodiodeCurrent1AU';
+            else
+                pd_curr_datasetname = '/Earth_Irradiance/EarthCurrent';
+                pd_curr_fieldname = 'EarthPhotodiodeCurrent';
+                pd_curr_norm_fieldname = 'EarthPhotodiodeCurrentNormalized';
+            end
 
             for jul_day = jul_day1 : jul_day2
                 curr_datetime = NIDateTime.getCalendarDateFromJulianDay(jul_day);
@@ -269,15 +326,16 @@ classdef NIL1B
                 end
                 fprintf('Reading L1B HDF file %s (%s to %s)...\n', filename.no_path, datestr(curr_datetime), datestr(curr_datetime + days(1)));
                 try
-                    l1bEarthPD_data = h5read(filename.with_path, NIConstants.hdfDataSet.l1bEarthPD);
+                    l1bEarthPD_data = h5read(filename.with_path, pd_curr_datasetname);
                 catch ME
                     warning('No/Unable to read L1B radiometry data found in the HDF file %s\n', filename.no_path);
                     fprintf('%s\n', ME.message);
                     continue;
                 end
                 l1bEarthPD.time = [l1bEarthPD.time; l1bEarthPD_data.DSCOVREpochTime];
-                l1bEarthPD.curr = [l1bEarthPD.curr; l1bEarthPD_data.PhotodiodeCurrent];
-                l1bEarthPD.curr_norm = [l1bEarthPD.curr_norm; l1bEarthPD_data.PhotodiodeCurrent1AU];
+                l1bEarthPD.curr = [l1bEarthPD.curr; l1bEarthPD_data.(pd_curr_fieldname)];
+                l1bEarthPD.curr_norm = [l1bEarthPD.curr_norm; l1bEarthPD_data.(pd_curr_norm_fieldname)];
+                l1bEarthPD.is_interp = [l1bEarthPD.is_interp; l1bEarthPD_data.IsInterpolatedData];
 
                 valid_file_count = valid_file_count + 1;
             end
@@ -293,9 +351,11 @@ classdef NIL1B
                 subplot(2, 1, 1);
                 plot(x_datetime_data, l1bEarthPD.curr);
                 title('Earth Photodiode Current');
+                ylabel('nA');
                 subplot(2, 1, 2);
                 plot(x_datetime_data, l1bEarthPD.curr_norm);
                 title('Earth Photodiode Current Normalized to 1 AU');
+                ylabel('nA');
                 stylize_figure(gcf, 6, 8);
             end
         end
@@ -312,6 +372,7 @@ classdef NIL1B
             %       options: options for reading L1B data
             %           directory: directory where L1B data is stored
             %           average: generate averaged data
+            %           percentage: minimum percentage for data in the averaging window, only effective when options.average is not 'none', default is 50
             %           plotFlag: flag to plot L1B data
             %           version: L1B version, current default value is 4
             %   Outputs:
@@ -352,6 +413,7 @@ classdef NIL1B
                 month2 (1, 1) double {mustBeInteger, mustBeGreaterThanOrEqual(month2, 1), mustBeLessThanOrEqual(month2, 12)} = month1
                 options.directory string {mustBeFolder} = strcat(NIConstants.dir.root, NIConstants.dir.hdf)
                 options.average string {mustBeMember(options.average, {'none', 'daily', 'weekly'})} = 'none'
+                options.percentage (1, 1) double {mustBeInteger, mustBeGreaterThanOrEqual(options.percentage, 0), mustBeLessThanOrEqual(options.percentage, 100)} = 50
                 options.plotFlag logical = false
                 options.version (1, 1) double {mustBeInteger, mustBeGreaterThanOrEqual(options.version, 1), mustBeLessThanOrEqual(options.version, 4)} = 4
             end
@@ -364,6 +426,20 @@ classdef NIL1B
 
             index1 = (year1 - 2017) * 12 + month1 - 1;
             index2 = (year2 - 2017) * 12 + month2 - 1;
+
+            if options.version >= 4
+                bandA_datasetname = NIConstants.hdfDataSet.l1bFilteredA;
+                bandB_datasetname = NIConstants.hdfDataSet.l1bFilteredB;
+                bandC_datasetname = NIConstants.hdfDataSet.l1bFilteredC;
+                pd_datasetname = NIConstants.hdfDataSet.l1bFilteredPD;
+                interp_encoder_fieldname = 'IsInterpolated';
+            else
+                bandA_datasetname = '/Earth_Radiance_Filtered/Band A (Total)';
+                bandB_datasetname = '/Earth_Radiance_Filtered/Band B (Shortwave)';
+                bandC_datasetname = '/Earth_Radiance_Filtered/Band C (NIR)';
+                pd_datasetname = '/Earth_Radiance_Filtered/Photodiode Current';
+                interp_encoder_fieldname = 'isInterpolated';
+            end
 
             for i = index1:index2
                 if i > 29 && i < 38 % DSCOVR extended safe mode
@@ -381,37 +457,37 @@ classdef NIL1B
                 end
                 fprintf('Reading L1B filtered data for year %d month %d\n', curr_year, curr_month);
                 try
-                    bandA_data = h5read(filename, NIConstants.hdfDataSet.l1bFilteredA);
+                    bandA_data = h5read(filename, bandA_datasetname);
                     bandA.time = [bandA.time; bandA_data.DSCOVREpochTime];
                     bandA.radiance = [bandA.radiance; bandA_data.EarthRadiance];
-                    bandA.source = [bandA.source; bandA_data.IsInterpolated];
+                    bandA.source = [bandA.source; bandA_data.(interp_encoder_fieldname)];
                 catch ME
                     warning('Failed to read L1B filtered Band A data for year %d month %d\n', curr_year, curr_month);
                     fprintf('%s\n', ME.message);
                 end
                 try
-                    bandB_data = h5read(filename, NIConstants.hdfDataSet.l1bFilteredB);
+                    bandB_data = h5read(filename, bandB_datasetname);
                     bandB.time = [bandB.time; bandB_data.DSCOVREpochTime];
                     bandB.radiance = [bandB.radiance; bandB_data.EarthRadiance];
-                    bandB.source = [bandB.source; bandB_data.IsInterpolated];
+                    bandB.source = [bandB.source; bandB_data.(interp_encoder_fieldname)];
                 catch ME
                     warning('Failed to read L1B filtered Band B data for year %d month %d\n', curr_year, curr_month);
                     fprintf('%s\n', ME.message);
                 end
                 try
-                    bandC_data = h5read(filename, NIConstants.hdfDataSet.l1bFilteredC);
+                    bandC_data = h5read(filename, bandC_datasetname);
                     bandC.time = [bandC.time; bandC_data.DSCOVREpochTime];
                     bandC.radiance = [bandC.radiance; bandC_data.EarthRadiance];
-                    bandC.source = [bandC.source; bandC_data.IsInterpolated];
+                    bandC.source = [bandC.source; bandC_data.(interp_encoder_fieldname)];
                 catch ME
                     warning('Failed to read L1B filtered Band C data for year %d month %d\n', curr_year, curr_month);
                     fprintf('%s\n', ME.message);
                 end
                 try
-                    bandPD_data = h5read(filename, NIConstants.hdfDataSet.l1bFilteredPD);
+                    bandPD_data = h5read(filename, pd_datasetname);
                     bandPD.time = [bandPD.time; bandPD_data.DSCOVREpochTime];
-                    bandPD.curr = [bandPD.curr; bandPD_data.EarthRadiance];
-                    bandPD.source = [bandPD.source; bandC_data.IsInterpolated];
+                    bandPD.curr = [bandPD.curr; bandPD_data.EarthPDCurrent1AU];
+                    bandPD.source = [bandPD.source; bandPD_data.(interp_encoder_fieldname)];
                 catch ME
                     warning('Failed to read L1B filtered Earth PD data for year %d month %d\n', curr_year, curr_month);
                     fprintf('%s\n', ME.message);
@@ -428,10 +504,10 @@ classdef NIL1B
                 end
                 fprintf('Averaging the data with a window of %d seconds...\n', average_window);
                 step = 86400;
-                bandA_average = running_ave(bandA.time, bandA.radiance, average_window, step, data_rate=10);
-                bandB_average = running_ave(bandB.time, bandB.radiance, average_window, step, data_rate=10);
-                bandC_average = running_ave(bandC.time, bandC.radiance, average_window, step, data_rate=10);
-                bandPD_average = running_ave(bandPD.time, bandPD.curr, average_window, step, data_rate=10);
+                bandA_average = running_ave(bandA.time, bandA.radiance, average_window, step, data_rate=10, percentage=options.percentage);
+                bandB_average = running_ave(bandB.time, bandB.radiance, average_window, step, data_rate=10, percentage=options.percentage);
+                bandC_average = running_ave(bandC.time, bandC.radiance, average_window, step, data_rate=10, percentage=options.percentage);
+                bandPD_average = running_ave(bandPD.time, bandPD.curr, average_window, step, data_rate=10, percentage=options.percentage);
                 averaged.time_a = bandA_average.time;
                 averaged.time_b = bandB_average.time;
                 averaged.time_c = bandC_average.time;
@@ -446,28 +522,53 @@ classdef NIL1B
 
             if options.plotFlag
                 figure;
+                date_xlim = [datetime(year1, month1, 1), datetime(year2, month2+1, 1)];
                 subplot(3, 1, 1);
                 plot(NIDateTime.getCalendarDateFromDSCOVREpoch(bandA.time), bandA.radiance, 'b.');
+                xlim(date_xlim);
+                ax = gca;
+                ax.XTickLabel = [];
+                title('Band A Earth radiance');
+                ylabel('W/m^2/sr');
                 subplot(3, 1, 2);
                 plot(NIDateTime.getCalendarDateFromDSCOVREpoch(bandB.time), bandB.radiance, 'r.');
+                xlim(date_xlim);
+                ax = gca;
+                ax.XTickLabel = [];
+                title('Band B Earth radiance');
+                ylabel('W/m^2/sr');
                 subplot(3, 1, 3);
                 plot(NIDateTime.getCalendarDateFromDSCOVREpoch(bandC.time), bandC.radiance, 'g.');
+                xlim(date_xlim);
                 stylize_figure(gcf, 6, 8);
+                title('Band C Earth radiance');
+                ylabel('W/m^2/sr');
                 figure;
                 plot(NIDateTime.getCalendarDateFromDSCOVREpoch(bandB.time), bandB.radiance);
                 hold on;
                 scale_factor = mean(bandB.radiance, 'omitnan') / mean(bandPD.curr, 'omitnan');
                 plot(NIDateTime.getCalendarDateFromDSCOVREpoch(bandPD.time), bandPD.curr * scale_factor);
+                legend('Band B Earth radiance', 'Scaled Photodiode Current');
+                title('Band B Earth radiance vs. Scaled photodiode Earth current');
+                ylabel('W/m^2/sr');
+                xlim(date_xlim);
                 stylize_figure(gcf, 6, 4);
                 if options.average ~= "none"
                     figure;
+                    subplot(2, 1, 1)
                     hold on
                     plot(NIDateTime.getCalendarDateFromDSCOVREpoch(averaged.time_pd), averaged.curr * scale_factor, 'k');
                     plot(NIDateTime.getCalendarDateFromDSCOVREpoch(averaged.time_b), averaged.radiance_b, 'r');
-                    title(sprintf('%s averaged SW vs PD channels', options.average));
+                    xlim(date_xlim);
+                    title(sprintf('%s averaged Band B radiance vs photodiode current', options.average));
                     legend('Scaled Photodiode Current', 'Shortwave');
-                    ylabel('$W/m^2/sr$');
-                    stylize_figure(gcf, 6, 4, ax_override_line_color=false);
+                    ylabel('W/m^2/sr');
+                    subplot(2, 1, 2)
+                    averaged_curr_interp = interp1(averaged.time_pd, averaged.curr * scale_factor, averaged.time_b, "linear");
+                    plot(NIDateTime.getCalendarDateFromDSCOVREpoch(averaged.time_b), (transpose(averaged.radiance_b) - averaged_curr_interp)./averaged_curr_interp * 100, 'k.');
+                    title('(band B radiance - scaled photodiode current) / scaled photodiode current');
+                    ylabel('%');
+                    stylize_figure(gcf, 8, 6, ax_override_line_color=false);
                 end
             end
         end

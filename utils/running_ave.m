@@ -33,16 +33,20 @@ function average = running_ave(time, data, window, step, options)
 arguments
     time (:,1) double
     data (:,1) double
-    window (1,1) double
-    step (1,1) double
+    window (1,1) double {mustBePositive}
+    step (1,1) double {mustBePositive}
     options.data_rate (1,1) double = 1
     options.first_index (1,1) double {mustBePositive, mustBeInteger} = 1
     options.last_index double {mustBePositive, mustBeInteger, mustBeScalarOrEmpty} = []
-    options.method (1,1) string = "mean"
+    options.method (1,1) string {mustBeMember(options.method, {'mean', 'median'})} = "mean"
     options.percentage (1,1) double {mustBeGreaterThanOrEqual(options.percentage, 0) ...
         mustBeLessThanOrEqual(options.percentage, 100)} = 70
     options.output_time (1,1) string {mustBeMember(options.output_time, {'center', 'averaged'})} = "center"
     options.plot (1,1) logical = false
+end
+
+if length(time) ~= length(data)
+    error('The lengths of input time and data do not match.');
 end
 
 if isempty(options.last_index)
@@ -55,8 +59,8 @@ if first_time_stamp > last_time_stamp
     error('The specify first time stamp is greater than the last time stamp');
 end
 % determine the number of averages
-num_averages = floor((last_time_stamp - first_time_stamp) /(step / options.data_rate)) + 1;
-if num_averages < 1
+num_averages = floor((last_time_stamp - first_time_stamp) / step) + 1;
+if num_averages == 1
     error('The step size is too large for the data');
 end
 fprintf('Number of averages: %d\n', num_averages);

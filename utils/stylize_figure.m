@@ -13,7 +13,7 @@ function stylize_figure(fig, figureWidth, figureHeight, options)
         options.ax_font_size (1,1) double {mustBePositive} = max(figureHeight, 9)
         options.ax_font_title_scale (1,1) double {mustBePositive} = 1.2
         options.ax_font_weight (1,1) string {mustBeMember(options.ax_font_weight, ["normal", "bold"])} = "bold"
-        options.ax_interpreter (1,1) {mustBeMember(options.ax_interpreter, ["latex", "tex", "none"])} = "latex"
+        options.ax_interpreter (1,1) {mustBeMember(options.ax_interpreter, ["latex", "tex", "none"])} = "tex"
         options.ax_box (1,1) logical = true
         options.ax_grid (1,3) logical = [false, false, false]
         options.ax_minor_grid (1,3) logical = [false, false, false]
@@ -29,7 +29,7 @@ function stylize_figure(fig, figureWidth, figureHeight, options)
         options.legend_font_name (1,1) string = NIConstants.figureConfig.font.legend
         options.legend_font_size (1,1) double {mustBePositive} = 9
         options.legend_font_weight (1,1) string {mustBeMember(options.legend_font_weight, ["normal", "bold"])} = "bold"
-        options.legend_interpreter (1,1) {mustBeMember(options.legend_interpreter, ["latex", "tex", "none"])} = "latex"
+        options.legend_interpreter (1,1) {mustBeMember(options.legend_interpreter, ["latex", "tex", "none"])} = "tex"
         options.legend_box (1,1) logical = false
         options.legend_location (1,1) string {mustBeMember(options.legend_location, ["best", "north", "south", ...
             "east", "west", "northeast", "northwest", "southeast", "southwest", "northoutside", ...
@@ -89,7 +89,7 @@ function stylize_axes(ax, options)
         options.font_size (1,1) double {mustBePositive} = 9
         options.font_title_scale (1,1) double {mustBePositive} = 1.2
         options.font_weight (1,1) string {mustBeMember(options.font_weight, ["normal", "bold"])} = "bold"
-        options.interpreter (1,1) {mustBeMember(options.interpreter, ["latex", "tex", "none"])} = "latex"
+        options.interpreter (1,1) {mustBeMember(options.interpreter, ["latex", "tex", "none"])} = "tex"
         options.box (1,1) logical = true
         options.grid (1,3) logical = [false, false, false]
         options.minor_grid (1,3) logical = [false, false, false]
@@ -170,7 +170,7 @@ function stylize_legend(legend, options)
         options.font_name (1,1) string = NIConstants.figureConfig.font.legend
         options.font_size (1,1) double {mustBePositive} = 9
         options.font_weight (1,1) string {mustBeMember(options.font_weight, ["normal", "bold"])} = "bold"
-        options.interpreter (1,1) {mustBeMember(options.interpreter, ["latex", "tex", "none"])} = "latex"
+        options.interpreter (1,1) {mustBeMember(options.interpreter, ["latex", "tex", "none"])} = "tex"
         options.box (1,1) logical = false
         options.location (1,1) string {mustBeMember(options.location, ["best", "north", "south", ...
             "east", "west", "northeast", "northwest", "southeast", "southwest", "northoutside", ...
